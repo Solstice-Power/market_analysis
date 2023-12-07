@@ -1,0 +1,152 @@
+---
+title: "Home"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+
+```{r setup, include=FALSE}
+
+source('helper_functions.R')
+load_packages()
+
+
+
+```
+
+
+
+
+# Overview
+
+This document summarizes the total addressable markets within each state Solstice operates or plans to explore. 
+
+Each state defines eligible population for solar farms through unique programmatic details, listed in detail on the [Policy Matrix](https://coda.io/d/Solstice-Policy_dBUL-zOSfnb/Program-Matrix_suVJB#Program-Matrix_tuLIr/r11&view=full) on Coda. This work looks to define how many people are eligible for each state program via income, geographic, or other unique definitions. Many programs have LMI carveouts; this document looks to define how many people that equates to. When available and applicable, utiliy zones are overlaid with these populations to estimate the potential population Solstice would be competing to sign up. 
+
+Utility coverage is provided by either the [HIFLD](https://hifld-geoplatform.opendata.arcgis.com/datasets/f4cd55044b924fed9bc8b64022966097/explore?location=41.065293%2C-80.583661%2C6.90) national level electric retail service territories or, preferably, state sources that are more granular. Note HIFLD often provides overlapping areas (ex: a municipal boundary and an utility provider) so data should primarily be sourced from state sources or be validated from HIFLD. 
+
+# Parcel Coverage
+
+Using parcel data, we can tag individual plots considered eligible by various state programs. When data is available, further analyses can provide breakdowns between residential and commercial buildings, allowing marketing to zero in on potential sites for a variety of applications such as corporation identification. Note, this process is only available in states where sufficient and open sourced parcel data is made available. Examples include [Illinois](https://jake-ford.github.io/lmi_by_utility_v2/Illinois.html). 
+
+# Solar Saturation
+
+We use the Groundswell's [LIFT](https://lift.groundswell.org/solar-projects/) to analyze existing CS market sizes and compare these to total capacity in the current state to arrive at existing capacity. State specific resources may supplement LIFT. 
+
+
+
+# Total Eligible Population Comparison
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ca_geo <- read_csv("final_data/ca_geo_total.csv") %>%
+ # mutate(State = "California") %>%
+  select( Population, Percentage)
+
+il_geo_sfa <- read_csv("final_data/il_geo_sfa_total.csv")%>%
+ # mutate(State = "Illinois SFA")  %>%
+  select( Population, Percentage)
+
+
+il_geo_engie <- read_csv("final_data/il_geo_engie_total.csv")%>%
+ # mutate(State = "Illinois Engie")  %>%
+  select( Population, Percentage)
+
+
+nj_geo <- read_csv("final_data/nj_geo_total.csv")%>%
+#  mutate(State = "New Jersey")  %>%
+  select( Population, Percentage)
+
+
+ny_geo <- read_csv("final_data/ny_geo_total.csv")%>%
+ # mutate(State = "New York")  %>%
+  select( Population, Percentage)
+
+
+ma_geo <- read_csv("final_data/ma_geo_total.csv") %>%
+  mutate(State = "Massachusetts",
+         Percentage = `Geo-Qual Population`/`State Total Pop`) %>%
+  select(State, `Geo-Qual Population`, Percentage, `80% AMI`, `100% AMI`, SNAP = `SNAP HHs`, `Total Pop` = `State Total Pop`, -Utility)
+
+
+
+temp_geo <- rbind(ca_geo, il_geo_sfa, il_geo_engie, nj_geo, ny_geo)
+
+
+
+ca_lmi <- read_csv("final_data/ca_lmi_total.csv") %>%
+  mutate(State = "California") %>%
+  select(-Utility)
+
+cal_total <- cbind(ca_geo, ca_lmi)
+
+il_lmi <- read_csv("final_data/il_lmi_total.csv")%>%
+  mutate(State = "Illinois") %>%
+  select(-Utility)
+
+il_total_sfa <- cbind(il_geo_sfa, il_lmi)
+il_total_sfa$State <- "Illinois SFA"
+
+il_total_engie <- cbind(il_geo_engie, il_lmi)
+il_total_engie$State <- "Illinois Engie"
+
+
+nj_lmi <- read_csv("final_data/nj_lmi_total.csv")%>%
+  mutate(State = "New Jersey") %>%
+  select(-Utility)
+
+nj_total <- cbind(nj_geo, nj_lmi)
+
+nj_total$`80% AMI` <- 1144376
+nj_total$`100% AMI` <- 1639804
+nj_total$SNAP <- 280379
+nj_total$`Total Pop` <- nj_total$`State Total Pop`
+
+nj_total <- nj_total %>%
+  select(Population, Percentage, `80% AMI`, `100% AMI`,
+         SNAP, `Total Pop`, State)
+
+
+ny_lmi <- read_csv("final_data/ny_lmi_total.csv")%>%
+  mutate(State = "New York") %>%
+  select(-Utility)
+
+ny_total <- cbind(ny_geo, ny_lmi)
+
+
+nm_lmi <- read_csv("final_data/nm_lmi_total.csv") %>%
+  mutate(State = "New Mexico") %>%
+  rename(`Total Pop` = `Total Population`,
+         `SNAP` = `SNAP HH`) %>%
+  select(-Name, -Medicaid)
+
+nm_lmi$Population <- NA
+nm_lmi$Percentage <- NA
+
+cols <- names(nm_lmi)
+nm_lmi <- nm_lmi[, c("Population", "Percentage", cols[!(cols %in% c("Population", "Percentage"))])]
+
+
+temp_geo <- rbind(cal_total, il_total_sfa,
+                  il_total_engie, nj_total, ny_total, nm_lmi)
+
+temp_geo <- temp_geo[, c("State", setdiff(names(temp_geo), "State"))]
+
+temp_geo <- temp_geo %>% 
+  rename(`Geo-Qual Population` = Population)
+
+temp_geo <- rbind(temp_geo, ma_geo)
+
+
+datatable(temp_geo, caption = "Solstice State Markets Geo- and LMI Populations") %>%
+    formatCurrency('80% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('Geo-Qual Population',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('100% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>%   formatCurrency('SNAP',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('Total Pop',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatPercentage('Percentage', digits=2)
+
+
+```
+

@@ -1,0 +1,449 @@
+---
+title: "Massachusetts"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+
+---
+```{r setup, include=FALSE}
+
+source('helper_functions.R')
+load_packages()
+
+
+
+```
+
+
+# Overivew
+
+
+Solstice enrolls community solar customers through the Solar Massachusetts Renewable Target (SMART) Program in this state. The SMART program does not have a separate program for low-income (LI) electricity customers. SMART instead uses various adders, including the Low-Income Community Shared Solar (LICSS) to incentivize LI-serving projects. It is worth noting that there is a small 5% carveout in each capacity block for “Low Income Community Shared” and “Low-Income Property” projects.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+ilsfa <- st_read("/Users/jacobford/Downloads/combined_ilsfa_maps.geojson")
+
+temp_util <- st_read("utility_zones/MA/pubutil/TOWNS_POLY_V_ELEC.shp") %>%
+  mutate(
+    new_name = case_when(
+      grepl("Municipal", ELEC_LABEL) ~ "Municipal",
+      grepl("NSTAR", ELEC_LABEL) ~ "Eversource",
+      grepl("National Grid", ELEC_LABEL) ~ "National Grid",
+      grepl("UNITIL", ELEC_LABEL) ~ "UNITIL",
+      TRUE ~ ELEC_LABEL
+    )
+  )
+
+four_cat_words <- c("Income", "Minority and income", "Income and English isolation", "Minority, income and English isolation")
+
+ma_ej_blocks <- st_read("data/MA/EJ_POLY.shp") %>%
+  filter(EJ_CRIT_DE %in% four_cat_words) 
+
+
+
+
+
+temp_ej_blocks <- ma_ej_blocks %>%
+  st_drop_geometry()
+
+ma_blocks <- get_acs(
+  geography="block group",
+  state="MA",
+  variables=c("Total_Pop" = "B01001_001"),
+  year=2020,
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(total_pop = estimate[variable=="Total_Pop"]) 
+
+
+
+
+
+temp_ej_blocks <- ma_ej_blocks %>%
+  st_transform(st_crs(ma_blocks))
+
+st_crs(temp_ej_blocks)
+
+
+ma_tracts <- get_acs(
+  geography="tract",
+  state="MA",
+  variables=c("Total_Pop" = "B01001_001","snap_hh" = "B22001_002","snap_pop" = "B19058_002",
+              "Total_HH" = "B25002_002"
+
+              ),
+  year=2019,
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(total_pop = estimate[variable=="Total_Pop"],
+            snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable=="snap_pop"],
+            total_hh = estimate[variable=="Total_HH"]) %>%
+  mutate(geoid=GEOID) %>%
+  select(-GEOID)
+
+
+
+```
+
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    TRUE ~ "Other"
+  )) %>%
+  filter(State_Name == "Massachusetts")
+
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state="MA",
+  variables=c("Median Income" = "S1901_C01_012E"),
+  year=2019, 
+  geometry=TRUE) %>%
+  mutate(MedInc = estimate) %>%
+  select(geoid=GEOID, geometry)
+
+add_geo <- merge(chas_df, ma_tracts) 
+add_geo <- st_as_sf(add_geo)
+
+add_geo2 <- merge(chas_df, get_tracts)
+add_geo2 <- st_as_sf(add_geo2)
+
+
+temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
+  st_make_valid()
+
+temp_util <- temp_util %>%
+  group_by(new_name) %>%
+  summarize(geometry = st_union(geometry), .groups = "drop")
+
+```
+
+
+Below are the main electrical utilities in Massachusetts. For this program, Solstice will only work with Eversource, National Grid and Unitil. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+# temp_util <- temp_util %>%
+#   filter(new_name %in% c())
+
+util_map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.5,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            group="Utility",
+            values=temp_util$new_name,
+            title="Solstice MA Utilities")
+
+util_map
+```
+
+# Geoqualification
+
+The below map shows the qualified Environmental Justice (EJ) 2020 census block groups for Massachusetts. Note, the below represent block groups that are tagged with the presence of an EJ metric, and does not delineate between EJ classifications (Income, Minority, Language, combination of the three). The EJ population map is viewable in further detail on this [website](https://mass-eoeea.maps.arcgis.com/apps/MapSeries/index.html?appid=535e4419dc0545be980545a0eeaf9b53).
+
+Further [information](https://www.mass.gov/info-details/massgis-data-2020-environmental-justice-populations#attributes-) on MA EJ blocks: 
+
+Polygons in the 2020 Environmental Justice (EJ) Populations layer are 2020 Census block groups across the state that meet one or more of the criteria listed below.
+
+ (i) the annual median household income is not more than 65 percent of the statewide annual median household income; (ii) minorities comprise 40 percent or more of the population; (iii) 25 percent or more of households lack English language proficiency; or (iv) minorities comprise 25 percent or more of the population and the annual median household income of the municipality in which the neighborhood is located does not exceed 150 percent of the statewide annual median household income.
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+temp <- ma_ej_blocks %>%
+  st_transform(st_crs(ma_tracts))
+
+
+st_write(temp, "/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/MA/MA_2020_EJ_Blocks_corrected.geojson", append=FALSE)
+
+
+
+ma_ej_blocks <- st_transform(ma_ej_blocks, st_crs(temp_util))
+
+util_map %>%
+  addPolygons(data=ma_ej_blocks, 
+              group = "EJ Blocks") %>%
+  
+  addLayersControl(
+    overlayGroups=c( "Utility", "EJ Blocks"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+geo_qual_table <- ma_ej_blocks %>%
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>%
+            select(Utility = new_name)) %>%
+  filter(Utility !="Municipal") %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(
+    `Geo-Qual Population` = sum(TOTAL_POP)
+  )%>%
+   adorn_totals("row") %>%
+  select(-Utility)
+
+
+temp_table <- add_geo %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  filter(Utility !="Municipal") %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(
+            `80% AMI` = sum(AMI_80),
+            `100% AMI` = sum(AMI_100),
+          #  `100% AMI HHs` = sum(AMI_100),
+           # `Total Under 80%` = sum(AMI_80_inclusive),
+
+            `SNAP HHs` = sum(snap_hh),
+            `State Total HHs` = sum(total_hh),
+            `State Total Pop` = sum(total_pop))%>%
+   adorn_totals("row") 
+
+#temp_table <- cbind(temp_table, geo_qual_table)
+temp_table <- cbind(temp_table[, 1:3], geo_qual_table[, 1], temp_table[, 4:6])
+
+datatable(temp_table, caption = "New Jersey Households by AMI Percentage by Utility") %>%
+
+
+  formatCurrency('80% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('100% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('SNAP HHs',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('Geo-Qual Population',currency = "", interval = 3, digits = 0, mark = ",")  %>%
+
+  formatCurrency('State Total HHs',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('State Total Pop',currency = "", interval = 3, digits = 0, mark = ",")
+
+# temp_table %>%
+#   filter(Utility=="Total") %>%
+#   write_csv("final_data/ma_geo_total.csv")
+
+```
+
+
+
+# LIFT Solar
+
+There are 145 community solar projects in New Jersey according to the LIFT solar database. 
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ma_tracts <- get_acs(
+  geography="tract", 
+  state="MA",
+  variables=c("Total_Pop" = "B01001_001","snap_hh" = "B22001_002","snap_pop" = "B19058_002"
+              
+              ),
+  year=2019, 
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(total_pop = estimate[variable=="Total_Pop"],
+            snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable=="snap_pop"])
+
+
+
+add_geo <- add_geo2
+
+
+
+total_ma_tracts <- cbind(add_geo, ma_tracts)
+
+
+lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
+
+lift_df <- separate(lift_df, GeoCode, into = c("long", "lat"), sep = ",")
+
+lift_df <- st_as_sf(lift_df, coords = c("long", "lat"), crs = st_crs(get_tracts))
+
+
+
+temp_df <- add_geo %>%
+  filter(State_Name == "Massachusetts") 
+
+temp_lift <- lift_df %>%
+  filter(State == "Massachusetts")
+
+
+pal_potLMI <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Potential...LMI.Subscribers)
+
+pal_cap <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Project.Capacity.KW.AC)
+
+pal <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80)
+
+pal2 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80_Pct)
+
+pal3 <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = total_ma_tracts$snap_hh)
+
+library(tidyr)
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$comp_short)
+  ) %>%
+  
+  addPolygons(
+    data = temp_df,
+    group="80% AMI",  # This should be consistent with the group name in the addLegend function
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal(AMI_80),
+    popup=paste("Tract: ", temp_df$geoid, "<br>", 
+                "HHs at 80% AMI: ", temp_df$AMI_80)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="80% AMI",  # This should be consistent with the group name in the addPolygons function
+            pal = pal,
+            values = temp_df$AMI_80,
+            title="Number of HHs at 80% AMI"
+  ) %>%
+  
+  # addPolygons(
+  #   data=nm_df,
+  #   group="80% AMI Percent",  # This should be consistent with the group name in the addLegend function
+  #   stroke=FALSE,
+  #   smoothFactor=0.2,
+  #   fillOpacity=0.7,
+  #   color=~pal2(AMI_80_Pct),
+  #   popup=paste("Tract: ", nm_df$geoid, "<br>", 
+  #               "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)
+  # ) %>%
+  # 
+  # addLegend("bottomleft",
+  #           group="80% AMI Percent",  # This should be consistent with the group name in the addPolygons function
+  #           pal = pal2,
+  #           values = nm_df$AMI_80_Pct,
+  #           title="Percent of HHs at 80% AMI"
+  # ) %>%
+  
+  addPolygons(
+    data=total_ma_tracts,
+    group="SNAP",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal3(snap_hh),
+    popup=paste("Tract: ", total_ma_tracts$GEOID, "<br>",
+                "Number of HHs Receiving SNAP: ", total_ma_tracts$snap_hh)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="SNAP",
+            pal = pal3,
+            values = total_ma_tracts$snap_hh,
+            title="Number of HHs Receiving SNAP:"
+  ) %>%
+  
+    addCircleMarkers(data = temp_lift,
+                   group="Potential LMI Subscribers",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(temp_lift$Potential...LMI.Subscribers), 
+                   color = ~pal_potLMI(Potential...LMI.Subscribers)) %>%
+  addLegend("bottomright",
+            group="Potential LMI Subscribers",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_potLMI,
+            values = temp_lift$Potential...LMI.Subscribers,
+            title="Potential LMI Subscribers") %>%
+
+    ## Project Capacity ## 
+  
+  addCircleMarkers(data = temp_lift,
+                   group="Project Capacity",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = (temp_lift$Project.Capacity.KW.AC), 
+                   color = ~pal_cap(Project.Capacity.KW.AC)) %>%
+  addLegend("topleft",
+             group="Project Capacity",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_cap,
+            values = temp_lift$Project.Capacity.KW.AC,
+            title="Project Capacity") %>%
+
+
+  addLayersControl(
+    overlayGroups=c( "80% AMI", "Utility Zones", "SNAP","Potential LMI Subscribers", "Project Capacity"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+map %>%
+ hideGroup("SNAP") %>% hideGroup("80% AMI") %>% hideGroup("Project Capacity")
+
+```
+
+
+
+
+
+
+
+

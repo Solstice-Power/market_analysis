@@ -1,0 +1,1295 @@
+---
+title: "Illinois"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+
+# Overview
+
+There two programs to consider in Illinois for LMI population estimation: Solar for All (SFA) and the Microsoft Engie. Each program has unique geo- and LMI qualifications. 
+
+```{r setup, include=FALSE}
+
+source('helper_functions.R')
+load_packages()
+
+
+
+```
+
+
+
+
+## Utility Zones
+
+There are two main utility zones in Illinois Solstice works with: Ameren and ComEd. Note a third utility, MidAmerican, does have a slight bit of coverage into Mercer and Henry Counties where Ameren and ComEd coverage ends. 
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") 
+
+state_list <- c("IL", "MA", "MN", "NJ", "NM", "NY",  "CA", "DE")
+
+
+temp_util <- hifld_df %>%
+  filter(ID %in% c(56697, 4110,12341)) %>%
+  mutate(new_name = case_when(
+    ID == 56697 ~ "Ameren",
+    ID == 4110 ~ "ComEd",
+    ID == 12341 ~ "MidAmerican"
+  ))
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state="IL",
+  variables=c("total_pop" = "B01001_001"),
+  year=2019, 
+  geometry=TRUE) %>%
+  mutate(total_pop = estimate) %>%
+  select(geoid=GEOID, geometry, total_pop) 
+
+
+new_tracts <- get_acs(
+  geography="tract", 
+  state="IL",
+  variables=c("total_pop" = "B01001_001"),
+  year=2020, 
+  geometry=TRUE) %>%
+  mutate(total_pop = estimate) %>%
+  select(geoid=GEOID, geometry, total_pop) 
+
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    TRUE ~ "Other"
+  ))
+
+il_counties <- get_acs(geography="county",
+                       variables = c("Total_Pop" = "B01001_001","snap_hh" = "B22001_002","snap_pop" = "B19058_002"), 
+              state = "IL", 
+              year = 2021,
+              geometry = TRUE) %>%
+  group_by(NAME, GEOID) %>%
+  summarize(total_pop = estimate[variable=="Total_Pop"],
+            snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable=="snap_pop"])
+
+
+
+il_tracts <- get_acs(
+  geography="tract", 
+  state="IL",
+  variables=c("snap_hh" = "B22001_002",
+              "snap_pop" = "B19058_002",
+              "medicaid_1" = "C27007_004",
+              "medicaid_2" = "C27007_007",
+              "medicaid_3" = "C27007_010",
+              "medicaid_4" = "C27007_014",
+              "medicaid_5" = "C27007_017",
+              "medicaid_6" = "C27007_020",
+              "Total_Pop" = "B01001_001"
+              
+              ),
+  year=2021, 
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable=="snap_pop"],
+            medicaid_pop =estimate[variable=="medicaid_1"] + 
+                          estimate[variable=="medicaid_2"] +
+                          estimate[variable=="medicaid_3"] +
+                          estimate[variable=="medicaid_4"] +
+                          estimate[variable=="medicaid_5"] +
+                          estimate[variable=="medicaid_6"] ,
+            total_pop = estimate[variable=="Total_Pop"])
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+il_geo <- add_geo %>%
+  filter(State_Name=="Illinois")
+
+temp_util <- st_transform(temp_util, st_crs(il_geo)) %>%
+  st_make_valid()
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+# Unhide for Mercer and Henry County MidAmerican Utility deep dive
+# il_counties <- il_counties %>%
+#   filter(GEOID == 17073 | GEOID == 17131)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.25,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=temp_util$new_name,
+            title="Solstice IL Utilities") %>%
+  addPolygons(data=il_counties, 
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              group="Counties",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", il_counties$NAME)) %>%
+  # addPolygons(data = il_tracts,
+  #             color = "red",
+  #             fillOpacity = .5,
+  #             popup=paste("GEOID: ", il_tracts$geoid)) %>%
+  
+  
+  addLayersControl(
+    overlayGroups=c( "Counties", "Utility Zones"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+```
+
+
+
+The below table shows the total sums of the demographics and LMI populations by utility zone coverage. ComEd covers about three times as much population as Ameren in Illinois. 
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## Mercer Demographic Table
+
+
+
+temp <- il_tracts %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(NAME)) %>%
+  st_drop_geometry() %>%
+  group_by(Name = NAME) %>%
+  filter(!is.na(Name)) %>%
+  summarize(`Total Pop` = sum(total_pop),
+            `SNAP` = sum(snap_pop),
+            `Medicaid` = sum(medicaid_pop)) %>%
+  adorn_totals("row") 
+
+
+
+temp_get_ami <- il_geo %>%
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(NAME)) %>%
+  st_drop_geometry() %>%
+  group_by(Name = NAME) %>%
+  filter(!is.na(Name)) %>%
+  summarize(`100% AMI` = sum(AMI_100),
+            `80% AMI` = sum(AMI_80)) %>%
+  adorn_totals("row") %>%
+  select(-Name) 
+
+
+  
+temp_total <- cbind(temp, temp_get_ami)
+
+datatable(temp_total, caption = "Total Illinois Demographics by Utility Coverage, Sources: ACS 2021 and HUD CHAS")%>%
+  formatCurrency('Total Pop', currency = "", mark = ",", interval = 3, digits = 0) %>%
+  formatCurrency('SNAP', currency = "", mark = ",", interval = 3, digits = 0) %>%
+  formatCurrency('Medicaid', currency = "", mark = ",", interval = 3, digits = 0) %>%
+  formatCurrency('100% AMI', currency = "", mark = ",", interval = 3, digits = 0) %>%
+  formatCurrency('80% AMI', currency = "", mark = ",", interval = 3, digits = 0) 
+
+
+
+
+```
+
+
+
+
+
+# Geoqualification
+
+The Microsoft Engie project uses a geoqualification map that was designed by Solstice. More details on the data used to create this map can be found [on the Coda Page](https://coda.io/d/Product_dEW7ukwF5E7/MSFT-Engie-Geospatial-Methods_suaHJ#_luvGQ). 
+
+For the SFA Program, an initial set of census tracts were designed ("legacy" layer in the [online map](https://elevate.maps.arcgis.com/apps/webappviewer/index.html?id=924cfbc202f24e22a88f07f21423fad0)), but an updated version was made available ("current" layer). Both layers can be used until June 2024. Each of these layers are shown on the below map. 
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+engie_tracts <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/Engie:Microsoft Geodata/MFST Engie Qualified Tracts.shp") 
+
+# Population Var: TotalPp
+
+engie_tracts <- st_transform(engie_tracts, st_crs(get_tracts))
+
+old_sfa <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Qualified Tracts/ILSFA Qualified Tracts.shp")
+
+old_sfa <- st_transform(old_sfa, st_crs(get_tracts))
+
+
+new_sfa <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Updated Map June 2023/Tract_ILSFA_IncomeEligible_POLY_Map-Data/Tract_ILSFA_IncomeEligible_POLY.shp") %>%
+  filter(IncomeElig==1)
+
+new_sfa <- st_transform(new_sfa, st_crs(get_tracts))
+
+
+combined_sfa <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Updated Map June 2023/combined_ilsfa_maps.geojson")
+
+combined_sfa <- st_transform(combined_sfa, st_crs(get_tracts))
+
+
+get_tracts <- get_tracts %>%
+  mutate(
+    engie = (geoid %in% engie_tracts$GEOID),
+    old_sfa = (geoid %in% old_sfa$GEOID)
+  )
+
+new_tracts <- new_tracts %>%
+  mutate(
+
+    new_sfa = (geoid %in% new_sfa$GEOID)
+    
+  )
+
+```
+
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=engie_tracts,
+              group="Engie",
+             # stroke=TRUE,
+              color="lightgreen",
+              dashArray="3",
+              fillOpacity=0.55,
+              popup=paste("GEOID: ", engie_tracts$GEOID)) %>%
+    addPolygons(data=old_sfa,
+              group="Legacy SFA",
+            #  stroke=TRUE,
+              color="purple",
+              dashArray="3",
+              fillOpacity=0.55,
+              popup=paste("GEOID: ", old_sfa$GEOID)) %>%
+  
+    addPolygons(data=new_sfa,
+              group="Current SFA",
+              #stroke=TRUE,
+              color="darkred",
+              dashArray="3",
+              fillOpacity=0.55,
+              popup=paste("GEOID: ", new_sfa$GEOID)) %>%
+  
+    addPolygons(data=combined_sfa,
+              group="Combined SFA",
+             # stroke=TRUE,
+              color="blue",
+              dashArray="3",
+              fillOpacity=0.55,
+              popup=paste("GEOID: ", combined_sfa$GEOID)) %>%
+
+  
+  
+  addLayersControl(
+    overlayGroups=c( "Engie", "Legacy SFA", "Current SFA", "Combined SFA"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("Legacy SFA") %>% hideGroup("Current SFA") %>% hideGroup("Combined SFA")
+```
+
+Note in the below table, you'll see the Engie map covers nearly 62% of the state's population. The combined coverage of SFA using both the legacy and current layers will result in roughly 45% of the state being covered; however, the current SFA map uses census tracts from the 2020 census, whereas the legacy SFA map uses census tracts from the 2010 census. This makes 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# get 2020 population covered by combined layer
+
+temp_centroids <- combined_sfa %>%
+  st_point_on_surface() %>%
+  st_join(new_tracts %>% select(geoid, total_pop)) %>%
+  st_drop_geometry() %>%
+  group_by(geoid) %>%
+  filter(!is.na(geoid)) %>%
+  summarize(total_pop = max(total_pop))
+
+
+temp <- data.frame(Method = c("Engie", "Legacy SFA", "Current SFA", "Combined SFA"),
+                   Population = c(sum(get_tracts$total_pop[get_tracts$engie==1]),
+                                 sum(get_tracts$total_pop[get_tracts$old_sfa==1]),
+                                 sum(new_tracts$total_pop[new_tracts$new_sfa==1]),
+                                 sum(temp_centroids$total_pop))
+                   )
+
+temp$`Percent of Total` <- temp$Population/sum(new_tracts$total_pop)
+
+
+
+
+datatable(temp, caption = "Illinois Geoqualification Method Totals")%>%
+  formatCurrency('Population', currency = "", mark = ",", interval = 3, digits = 0) %>%
+  formatPercentage('Percent of Total', digits = 2)
+
+```
+
+
+
+
+
+
+
+# LMI Qualification
+
+For the Engie program, we use 100% AMI, SNAP and Medicaid households to estimate LMI populations. For the SFA program, the requirements slightly differ with a lower AMI percentage of 80%, with the same SNAP and Medicaid use cases. 
+
+
+# LIFT Solar
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+il_tracts <- get_acs(
+  geography="tract", 
+  state="IL",
+  variables=c("Total_Pop" = "B01001_001","snap_hh" = "B22001_002","snap_pop" = "B19058_002"
+              
+              ),
+  year=2019, 
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(total_pop = estimate[variable=="Total_Pop"],
+            snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable=="snap_pop"])
+
+
+
+
+
+
+
+total_il_tracts <- cbind(il_geo, il_tracts)
+
+```
+
+
+
+There are 13 community solar projects in New Jersey according to the LIFT solar database. 
+
+
+
+```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
+
+lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
+
+lift_df <- separate(lift_df, GeoCode, into = c("long", "lat"), sep = ",")
+
+lift_df <- st_as_sf(lift_df, coords = c("long", "lat"), crs = st_crs(get_tracts))
+
+
+
+temp_df <- add_geo %>%
+  filter(State_Name == "Illinois") 
+
+temp_lift <- lift_df %>%
+  filter(State == "Illinois")
+
+
+pal_potLMI <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Potential...LMI.Subscribers)
+
+pal_cap <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Project.Capacity.KW.AC)
+
+
+
+pal <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80)
+
+pal2 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80_Pct)
+
+pal3 <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = total_il_tracts$snap_hh)
+
+library(tidyr)
+
+
+
+
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$comp_short)
+  ) %>%
+  
+  addPolygons(
+    data = temp_df,
+    group="80% AMI",  # This should be consistent with the group name in the addLegend function
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal(AMI_80),
+    popup=paste("Tract: ", temp_df$geoid, "<br>", 
+                "HHs at 80% AMI: ", temp_df$AMI_80)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="80% AMI",  # This should be consistent with the group name in the addPolygons function
+            pal = pal,
+            values = temp_df$AMI_80,
+            title="Number of HHs at 80% AMI"
+  ) %>%
+  
+  # addPolygons(
+  #   data=nm_df,
+  #   group="80% AMI Percent",  # This should be consistent with the group name in the addLegend function
+  #   stroke=FALSE,
+  #   smoothFactor=0.2,
+  #   fillOpacity=0.7,
+  #   color=~pal2(AMI_80_Pct),
+  #   popup=paste("Tract: ", nm_df$geoid, "<br>", 
+  #               "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)
+  # ) %>%
+  # 
+  # addLegend("bottomleft",
+  #           group="80% AMI Percent",  # This should be consistent with the group name in the addPolygons function
+  #           pal = pal2,
+  #           values = nm_df$AMI_80_Pct,
+  #           title="Percent of HHs at 80% AMI"
+  # ) %>%
+  
+  addPolygons(
+    data=total_il_tracts,
+    group="SNAP",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal3(snap_hh),
+    popup=paste("Tract: ", total_il_tracts$GEOID, "<br>",
+                "Number of HHs Receiving SNAP: ", total_il_tracts$snap_hh)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="SNAP",
+            pal = pal3,
+            values = total_il_tracts$snap_hh,
+            title="Number of HHs Receiving SNAP:"
+  ) %>%
+  
+    addCircleMarkers(data = temp_lift,
+                   group="Potential LMI Subscribers",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(temp_lift$Potential...LMI.Subscribers), 
+                   color = ~pal_potLMI(Potential...LMI.Subscribers)) %>%
+  addLegend("bottomright",
+            group="Potential LMI Subscribers",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_potLMI,
+            values = temp_lift$Potential...LMI.Subscribers,
+            title="Potential LMI Subscribers") %>%
+
+    ## Project Capacity ## 
+  
+  addCircleMarkers(data = temp_lift,
+                   group="Project Capacity",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(temp_lift$Project.Capacity.KW.AC), 
+                   color = ~pal_cap(Project.Capacity.KW.AC)) %>%
+  addLegend("topleft",
+             group="Project Capacity",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_cap,
+            values = temp_lift$Project.Capacity.KW.AC,
+            title="Project Capacity") %>%
+
+
+  addLayersControl(
+    overlayGroups=c( "80% AMI", "Utility Zones", "SNAP","Potential LMI Subscribers", "Project Capacity"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+map %>%
+ hideGroup("SNAP") %>% hideGroup("80% AMI") %>% hideGroup("Project Capacity")
+
+```
+
+
+
+# Parcel Identification
+
+Using Cook County's Commerical data [database](https://dev.socrata.com/foundry/datacatalog.cookcountyil.gov/csik-bsws), we pull all 2022 values for completeness. Using the property rate [codes](https://www.lincolninst.edu/sites/default/files/gwipp/upload/sources/Illinois/2015/IL_Cook_County%20_class_code_by_County_Assessor_Dec_22_2010.PDF) from the Assessor's Office, we arrive at total non-residential (i.e. commercial) parcels. Note this data is only available for Cook County. 
+
+We tag the commercial parcels to qualified census tracts by both Engie and SFA. 77.6% of commercial parcels in Cook County are qualified by Engie, whereas 64.2% are qualified by SFA (combined method). The map below shows a sample of 10,000 commerical parcels tagged by either Engie or SFA and their relative locaiton. 
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# res_values <-c(200, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 234, 278, 295, 201, 213, 218, 219, 225, 297, 299, 300, 301, 313, 314, 415, 318, 391, 396, 397, 399, 900, 901, 913, 914, 915, 918, 959, 990, 991, 996, 997)
+
+library(RSocrata)
+# Set up the API connection
+app_token <- "EBYzKzfx3XvFrSyn1pWNtZzbA"
+email <- "jake@solstice.us"
+password <- "GMF0jqu@fyh2uwt2tmx"
+
+# Define the base URL and the endpoint
+base_url <- "https://datacatalog.cookcountyil.gov"
+endpoint <- "/resource/tx2p-k2g9.json"
+
+
+
+res_values <- c('500', '501', '516', '517', '522', '523', '526', '527', '528', '529', '530', 
+                '531', '532', '533', '535', '590', '591', '592', '597', '599', '550', '580', '581', 
+                '583', '587', '589', '593')
+
+where_clause <- sprintf("year = 2022 and class IN ('%s')", paste(res_values, collapse="','"))
+
+query <- sprintf("%s%s?$where=%s&$limit=10000", base_url, endpoint, where_clause)
+
+# Get the data
+cook_parcels <- read.socrata(query, app_token = app_token, email = email, password = password)
+
+# Filter out rows with NA in 'lat' column
+cook_parcels <- dplyr::filter(cook_parcels, !is.na(lat))
+
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+# Create a vector of class values
+res_values <- c('401', '407', '407', '418', '422', '423', '426', '427', '428', '429', '430', 
+                '431', '432', '433', '480', '487', '483', '487', '489', '490', '491', '492', '493', 
+                '496', '497', '499')
+
+where_clause <- sprintf("year = 2022 and class IN ('%s')", paste(res_values, collapse="','"))
+
+# Construct the full URL with the query
+query <- sprintf("%s%s?$where=%s", base_url, endpoint, where_clause)
+
+# Get the data
+non_profit_parcels <- read.socrata(query, app_token = app_token, email = email, password = password)
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+
+# Commercial - non-business
+# 
+# 100 exempt/railraod/vacant
+# 190 vacant
+# 224 farm
+# 
+# 236 "Any residential area located on a parcel used primarily for commercial or industrial purposes"
+# 
+# 241 - "Vacant land under common ownership with adjacent residence"
+# 
+# 288
+# 290
+# 
+# 
+# Commercial - business
+# 
+# 239 - Non-equalized land under agricultural use, valued at farm pricing
+# 
+# 417 - Not-for-profit one-story commercial building
+# 
+# 428 - Not-for-profit bank building
+# 
+
+
+
+data <- data.frame(
+  Code = c(
+    "EX", "RR", "100", "190",
+    "400", "401", "417", "418", "422", "423", "426", "427", "428", "429",
+    "430", "431", "432", "433", "480", "481", "483", "487", "489", "490",
+    "491", "492", "493", "496", "497", "499",
+    "200", "201", "213", "218", "219", "224", "225", "236", "239", "240",
+    "241", "888", "890", "897", "899"
+  ),
+  Description = c(
+    "Exempt Property",
+    "Railroad Property",
+    "Vacant Land",
+    "Minor Improvement on Vacant Land",
+    "Not-for-profit land",
+    "Not-for-profit ancillary structures used in conjunction with commercial non-profit improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Not-for-profit one-story commercial building",
+    "Not-for-profit two-or-three story mixed-use commercial/residential building",
+    "Not-for-profit one-story non-fireproof public garage",
+    "Not-for-profit gasoline station",
+    "Not-for-profit commercial greenhouse",
+    "Not-for-profit theatre",
+    "Not-for-profit bank building",
+    "Not-for-profit motel",
+    "Not-for-profit supermarket",
+    "Not-for-profit shopping center",
+    "Not-for-profit bowling alley",
+    "Not-for-profit Quonset hut or butler type building",
+    "Not-for-profit industrial minor improvement",
+    "Not-for-profit ancillary structures used in conjunction with industrial non-profit improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Not-for-profit industrial Quonset hut or butler type building",
+    "Not-for-profit special industrial improvement",
+    "Not-for-profit industrial condominium",
+    "Not-for-profit commercial minor improvement",
+    "Not-for-profit improvement over three stories",
+    "Not-for-profit, two-or-three story building containing part of all retail and/or commercial space",
+    "Not-for-profit industrial building",
+    "Not-for-profit, rented modern row houses, seven or more units in a single development",
+    "Not-for-profit special structure",
+    "Not-for-profit condominium",
+    "Residential land",
+    "Residential garage",
+    "Cooperative",
+    "A residential building licensed as a Bed & Breakfast by the municipality, County of Cook, or registered as a Bed & Breakfast with the State of Illinois under 50 ILCS 820/1 et seq., with six or fewer rentable units and where one unit is owner occupied and is entitled to a homeowner’s exemption under the Property Tax Code",
+    "A residential building licensed as a Bed & Breakfast by the municipality, County of Cook, or registered as a Bed & Breakfast with the State of Illinois under 50 ILCS 820/1 et seq., with six or fewer rentable units and where none of the units are owner occupied and no homeowner’s exemption is allowed under the Property Tax Code",
+    "Farm building",
+    "Single-room occupancy (“SRO”) rental building",
+    "Any residential area located on a parcel used primarily for commercial or industrial purposes",
+    "Non-equalized land under agricultural use, valued at farm pricing",
+    "First-time agricultural use of land valued at market price",
+    "Vacant land under common ownership with adjacent residence",
+    "Home improvement exemption",
+    "Minor improvement",
+    "Special residential improvements (may apply to condo building in first year of construction before division into individual units)",
+    "Residential condominium"
+  )
+)
+
+new_values <- data.frame(
+  Code = c(
+    "2-00", "2-02", "2-03", "2-04", "2-05", "2-06", "2-07", "2-08", "2-09", "2-10",
+    "2-11", "2-12"
+  ),
+  Description = c(
+    "Residential Land",
+    "One-story Residence, any age, up to 999 square feet",
+    "One-story Residence, any age, 1,000 to 1,800 square feet",
+    "One-story Residence, any age, 1,801 square feet and over",
+    "Two-or-more story residence, over 62 years of age up to 2,200 square feet",
+    "Two-or-more story residence, over 62 years of age, 2,201 to 4,999 square feet",
+    "Two-or-more story residence, up to 62 years of age, and up to 2,000 square feet",
+    "Two-or-more story residence, up to 62 years of age, 3,801 to 4,999 square feet",
+    "Two-or-more story residence, any age, 5,000 square feet and over",
+    "Old style row house (townhome), over 62 years of age",
+    "Apartment building with 2 to 6 units, any age",
+    "Mixed-use commercial/residential building with apartment and commercial area totaling 6 units or less and below 20,000 square feet of building area"
+  )
+)
+
+# Remove the hyphen from the Code column
+new_values$Code <- gsub("-", "", new_values$Code)
+
+# Append the new values to the existing dataframe
+data <- rbind(data, new_values)
+
+
+```
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+new_values <- data.frame(
+  Code = c(
+    "5-00", "5-01", "5-16", "5-17", "5-22", "5-23", "5-26", "5-27", "5-28", "5-29",
+    "5-30", "5-31", "5-32", "5-33", "5-35", "5-90", "5-91", "5-92", "5-97", "5-99",
+    "5-50", "5-80", "5-81", "5-83", "5-87", "5-89", "5-93"
+  ),
+  Description = c(
+    "Commercial land",
+    "Ancillary structures used in conjunction with commercial improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Non-fireproof hotel or rooming house (apartment hotel)",
+    "One-story, commercial building or area",
+    "One-story, non-fireproof public garage",
+    "Gasoline station",
+    "Commercial greenhouse",
+    "Theatre",
+    "Bank building",
+    "Motel",
+    "Supermarket",
+    "Shopping center",
+    "Bowling alley",
+    "Quonset hut or butler type building",
+    "Golf course land/improvement",
+    "Commercial minor improvement",
+    "Commercial building over three stories",
+    "Two-or-three story building containing part of all retail and/or commercial space",
+    "Special commercial structure",
+    "Commercial condominium unit",
+    "Industrial land",
+    "Industrial minor improvement",
+    "Ancillary structures used in conjunction with industrial improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Industrial Quonset hut or butler type building",
+    "Special industrial improvement",
+    "Industrial condominium unit",
+    "Industrial building"
+  )
+)
+
+# Remove the hyphen from the Code column
+new_values$Code <- gsub("-", "", new_values$Code)
+
+# Append the new values to the existing dataframe
+data <- rbind(data, new_values)
+
+
+new_values <- data.frame(
+  Code = c(
+    "3-00", "3-01", "3-13", "3-14", "3-15", "3-18", "3-91", "3-96", "3-97", "3-99"
+  ),
+  Description = c(
+    "Land used in conjunction with rental apartments",
+    "Ancillary structures used in conjunction with rental apartments (garage, mechanical structures, storage sheds, etc.)",
+    "Two-or-three story building, seven or more units",
+    "Two-or-three-story, non-fireproof building with corridor apartment or California type apartments, no corridors, exterior entrance",
+    "Two-or-three story, non-fireproof corridor apartments or California type apartments, interior entrance",
+    "Mixed-use commercial/residential building with apartment and commercial area totaling 7 units or more or between 20,000 to 99,999 square feet of building area, with the commercial component of the property consisting of no more than 35% of the total rentable square footage",
+    "Apartment building over three stories, seven or more units",
+    "Rented modern row houses, seven or more units in a single development or one or more contiguous parcels in common ownership",
+    "Special rental structure",
+    "Rental condominium"
+  )
+)
+
+# Remove the hyphen from the Code column
+new_values$Code <- gsub("-", "", new_values$Code)
+
+# Append the new values to the existing dataframe
+data <- rbind(data, new_values)
+
+
+new_values <- data.frame(
+  Code = c(
+    "6-51", "6-63", "6-70", "6-71", "6-73", "6-77", "6-79", "6-81"
+  ),
+  Description = c(
+    "Industrial land",
+    "Industrial building",
+    "Industrial minor improvement",
+    "Ancillary structures used in conjunction with industrial improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Industrial Quonset hut or butler type building",
+    "Special industrial improvement",
+    "Industrial condominium unit",
+    "Ancillary structures used in conjunction with industrial improvements (garage, mechanical structures, storage sheds, etc.)"
+  )
+)
+
+# Remove the hyphen from the Code column
+new_values$Code <- gsub("-", "", new_values$Code)
+
+# Append the new values to the existing dataframe
+data <- rbind(data, new_values)
+
+
+new_values <- data.frame(
+  Code = c(
+    "7-00", "7-01", "7-16", "7-17", "7-22", "7-23", "7-26", "7-27", "7-28", "7-29",
+    "7-30", "7-31", "7-32", "7-33", "7-35", "7-90", "7-92", "7-97", "7-99",
+    "7-42", "7-43", "7-45", "7-46", "7-47", "7-48", "7-52", "7-53", "7-56", "7-57", "7-58",
+    "7-60", "7-61", "7-62", "7-64", "7-65", "7-67", "7-72", "7-74", "7-98"
+  ),
+  Description = c(
+    "Commercial Incentive Land",
+    "Ancillary structures used in conjunction with commercial improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Non-fireproof hotel or rooming house (apartment hotel)",
+    "One-story commercial use building",
+    "Garage (service station)",
+    "Gasoline station, with or without bays, store",
+    "Commercial greenhouse",
+    "Theatre",
+    "Bank building",
+    "Motel",
+    "Supermarket",
+    "Shopping center",
+    "Bowling alley",
+    "Quonset hut or butler type building",
+    "Golf course improvement",
+    "Office building (one-story, low-rise, mid-rise, high-rise)",
+    "Two-or-three-story building containing part of all retail and/or commercial space",
+    "Special commercial structure",
+    "Commercial/Industrial condominium unit/garage",
+    "Commercial incentive land",
+    "Ancillary structures used in conjunction with commercial improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Golf course improvement",
+    "Non-fireproof hotel or rooming house (apartment hotel)",
+    "One-story commercial building",
+    "Motel",
+    "Garage (service station)",
+    "Gasoline station, with or without bays, store",
+    "Commercial greenhouse",
+    "Theatre",
+    "Bank building",
+    "Supermarket",
+    "Shopping center (regional, community, neighborhood, promotional, specialty)",
+    "Bowling alley",
+    "Quonset hut or butler type building",
+    "Other minor commercial improvements",
+    "Special commercial structure",
+    "Two-or-three-story building, containing part or all retail and/or commercial space",
+    "Office building",
+    "Commercial/Industrial condominium units/garage"
+  )
+)
+
+# Remove the hyphen from the Code column
+new_values$Code <- gsub("-", "", new_values$Code)
+
+# Append the new values to the existing dataframe
+data <- rbind(data, new_values)
+
+
+new_values <- data.frame(
+  Code = c(
+    "8-00", "8-01", "8-16", "8-17", "8-22", "8-23", "8-27", "8-28", "8-29", "8-30",
+    "8-31", "8-32", "8-33", "8-35", "8-80", "8-81", "8-90", "8-91", "8-92", "8-93",
+    "8-97", "8-99"
+  ),
+  Description = c(
+    "Commercial incentive land",
+    "Ancillary structures used in conjunction with commercial improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Non-fireproof hotel or rooming house (apartment hotel)",
+    "One-story commercial building",
+    "Garage (service station)",
+    "Gasoline station with or without bays, store",
+    "Theatre",
+    "Bank building",
+    "Motel",
+    "Supermarket",
+    "Shopping center (regional, community, neighborhood, promotional, specialty)",
+    "Bowling alley",
+    "Quonset hut or butler type building",
+    "Golf course improvement",
+    "Industrial minor improvement",
+    "Ancillary structures used in conjunction with industrial improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Minor industrial improvement",
+    "Office building",
+    "Two-or-three-story building containing part of all retail and/or commercial space",
+    "Industrial building",
+    "Special commercial structure",
+    "Commercial/Industrial condominium unit/garage"
+  )
+)
+
+# Remove the hyphen from the Code column
+new_values$Code <- gsub("-", "", new_values$Code)
+
+# Append the new values to the existing dataframe
+data <- rbind(data, new_values)
+
+
+new_values <- data.frame(
+  Code = c(
+    "9-00", "9-01", "9-13", "9-14", "9-15", "9-18", "9-59", "9-90", "9-91", "9-96",
+    "9-97", "6-37", "6-38", "6-54", "6-55", "6-66", "6-68", "6-69"
+  ),
+  Description = c(
+    "Land used in conjunction with incentive rental apartments",
+    "Ancillary structures used in conjunction with rental apartments (garage, mechanical structures, storage sheds, etc.)",
+    "Two-or-three-story apartment building, seven or more units",
+    "Two-or-three-story non-fireproof court and corridor apartments or California type apartments, no corridors, exterior entrance",
+    "Two-or-three-story non-fireproof corridor apartments, or California type apartments, interior entrance",
+    "Mixed-use commercial/residential building with apartments and commercial area where the commercial area is granted an incentive use",
+    "Rental condominium unit",
+    "Other minor improvements",
+    "Apartment buildings over three stories",
+    "Rented modern row houses, seven or more units in a single development or one or more contiguous parcels in common ownership",
+    "Special rental structure",
+    "Commercial incentive land",
+    "Commercial incentive improvement",
+    "Other commercial or industrial minor improvements",
+    "Ancillary structures used in conjunction with commercial/industrial improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Quonset hut or butler type building",
+    "Special commercial/industrial incentive improvement",
+    "Commercial/industrial condominium unit"
+  )
+)
+
+# Remove the hyphen from the Code column
+new_values$Code <- gsub("-", "", new_values$Code)
+
+# Append the new values to the existing dataframe
+data <- rbind(data, new_values)
+
+
+
+
+# New values for codes starting with "4-XX"
+additional_values <- data.frame(
+  Code = c(
+    "4-00", "4-01", "4-17", "4-18", "4-22", "4-23", "4-26", "4-27", "4-28", "4-29",
+    "4-30", "4-31", "4-32", "4-33", "4-80", "4-81", "4-83", "4-87", "4-89", "4-90",
+    "4-91", "4-92", "4-93", "4-96", "4-97", "4-99"
+  ),
+  Description = c(
+    "Not-for-profit land",
+    "Not-for-profit ancillary structures used in conjunction with commercial non-profit improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Not-for-profit one-story commercial building",
+    "Not-for-profit two-or-three story mixed-use commercial/residential building",
+    "Not-for-profit one-story non-fireproof public garage",
+    "Not-for-profit gasoline station",
+    "Not-for-profit commercial greenhouse",
+    "Not-for-profit theatre",
+    "Not-for-profit bank building",
+    "Not-for-profit motel",
+    "Not-for-profit supermarket",
+    "Not-for-profit shopping center",
+    "Not-for-profit bowling alley",
+    "Not-for-profit Quonset hut or butler type building",
+    "Not-for-profit industrial minor improvement",
+    "Not-for-profit ancillary structures used in conjunction with industrial non-profit improvements (garage, mechanical structures, storage sheds, etc.)",
+    "Not-for-profit industrial Quonset hut or butler type building",
+    "Not-for-profit special industrial improvement",
+    "Not-for-profit industrial condominium",
+    "Not-for-profit commercial minor improvement",
+    "Not-for-profit improvement over three stories",
+    "Not-for-profit, two-or-three story building containing part of all retail and/or commercial space",
+    "Not-for-profit industrial building",
+    "Not-for-profit, rented modern row houses, seven or more units in a single development",
+    "Not-for-profit special structure",
+    "Not-for-profit condominium"
+  )
+)
+
+# Remove the hyphen from the Code column
+additional_values$Code <- gsub("-", "", additional_values$Code)
+
+# Append the new values to the existing dataframe
+data <- rbind(data, new_values, additional_values)
+
+
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+for (i in 1:nrow(cook_parcels)) {
+  matching_description <- data$Description[data$Code == gsub("-", "", cook_parcels$class[i])]
+  if (length(matching_description) > 0) {
+    cook_parcels$class_full[i] <- matching_description
+  } else {
+    cook_parcels$class_full[i] <- NA  # or any other placeholder value indicating no match
+  }
+}
+
+
+for (i in 1:nrow(non_profit_parcels)) {
+  matching_description <- data$Description[data$Code == gsub("-", "", non_profit_parcels$class[i])]
+  if (length(matching_description) > 0) {
+    non_profit_parcels$class_full[i] <- matching_description
+  } else {
+    non_profit_parcels$class_full[i] <- NA  # or any other placeholder value indicating no match
+  }
+}
+
+
+```
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+combined_sfa$tag <- 1
+cook_parcels <- st_as_sf(cook_parcels, coords = c("lon", "lat"), crs = 4326) 
+
+cook_parcels <- cook_parcels %>%
+  st_transform(crs = st_crs(engie_tracts)) 
+
+cook_parcels <- cook_parcels %>%
+  st_point_on_surface() %>%
+  st_join(engie_tracts %>% select(engie_tag = tag)) %>%
+  st_join(combined_sfa %>% select(sfa_tag = tag))
+  
+
+non_profit_parcels <- st_as_sf(non_profit_parcels, coords = c("lon", "lat"), crs = 4326) 
+
+non_profit_parcels <- non_profit_parcels %>%
+  st_transform(crs = st_crs(engie_tracts)) 
+
+non_profit_parcels <- non_profit_parcels %>%
+  st_point_on_surface() %>%
+  st_join(engie_tracts %>% select(engie_tag = tag)) %>%
+  st_join(combined_sfa %>% select(sfa_tag = tag))
+  
+  
+  
+```
+
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+
+pal <- colorFactor(palette = c("red", "darkgreen"),  cook_parcels$engie_tag)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  
+  #non profit
+    addCircles(data=non_profit_parcels,
+                   group="NFP Engie Parcels",
+                   color= ~pal(engie_tag),
+                   fillOpacity=0.95,
+                   popup=paste("Name: ", non_profit_parcels$mail_address_name, "<br>",
+                               "Address: ", non_profit_parcels$prop_address_full, "<br>", 
+                               "Class: ", non_profit_parcels$class_full)) %>%
+    addCircles(data=non_profit_parcels,
+                   group="NFP SFA Parcels",
+                   color= ~pal(sfa_tag),
+                   fillOpacity=0.8,
+                   popup=paste("Name: ", non_profit_parcels$mail_address_name, "<br>",
+                               "Address: ", non_profit_parcels$prop_address_full, "<br>", 
+                               "Class: ", non_profit_parcels$class_full)) %>%
+  # total cook county 
+  addCircles(data=cook_parcels,
+                   group="Engie Parcels",
+                   color= ~pal(engie_tag),
+                   fillOpacity=0.95,
+                   popup=paste("Name: ", cook_parcels$mail_address_name, "<br>",
+                               "Address: ", cook_parcels$prop_address_full, "<br>", 
+                               "Class: ", cook_parcels$class_full)) %>%
+    addCircles(data=cook_parcels,
+                   group="SFA Parcels",
+                   color= ~pal(sfa_tag),
+                   fillOpacity=0.8,
+                   popup=paste("Name: ", cook_parcels$mail_address_name, "<br>",
+                               "Address: ", cook_parcels$prop_address_full, "<br>", 
+                               "Class: ", cook_parcels$class_full)) %>%
+  addPolygons(data=engie_tracts,
+              group="Engie",
+             # stroke=TRUE,
+              color="lightgreen",
+              dashArray="3",
+              fillOpacity=0.55,
+              popup=paste("GEOID: ", engie_tracts$GEOID)) %>%
+
+  
+  
+  
+    addPolygons(data=combined_sfa,
+              group="Combined SFA",
+             # stroke=TRUE,
+              color="blue",
+              dashArray="3",
+              fillOpacity=0.55,
+              popup=paste("GEOID: ", combined_sfa$GEOID)) %>%
+
+  
+  
+  addLayersControl(
+    overlayGroups=c( "Engie", "Engie Parcels","NFP Engie Parcels", "Combined SFA", "SFA Parcels", "NFP SFA Parcels"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("Legacy SFA") %>% hideGroup("Current SFA") %>% hideGroup("Combined SFA") %>% hideGroup("NFP SFA Parcels") %>% hideGroup("NFP Engie Parcels")
+```
+
+
+
+# Olive Township Analysis
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+townships <- st_read("data/IL/Illinois_Political_Townships/Illinois_Political_Townships.shp") %>%
+  filter(NAME %in% c("DORCHESTER TWP", "STAUNTON TWP", "WALSHVILLE TWP", "NEW DOUGLAS TWP", "ALHAMBRA TWP", "OMPHGHENT TWP", "OLIVE TWP"))
+
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=add_geo,
+              group="Geo",
+             # stroke=TRUE,
+              color="lightgreen",
+              dashArray="3",
+              fillOpacity=0.55,
+              popup=paste("GEOID: ", add_geo$geoid, "<br>",
+                          "Total Pop: ", add_geo$total_pop, "<br>",
+                          "80% AMI: ", add_geo$AMI_80)) %>%
+
+    # 
+    # addPolygons(data=combined_sfa,
+    #           group="Combined SFA",
+    #          # stroke=TRUE,
+    #           color="blue",
+    #           dashArray="3",
+    #           fillOpacity=0.55,
+    #           popup=paste("GEOID: ", combined_sfa$GEOID)) %>%
+  addPolygons(data=townships,
+              group="Townships",
+              color="red",
+              popup=paste("Township Name: ", townships$NAME)) %>%
+
+  
+  
+  addLayersControl(
+    overlayGroups=c( "Geo", "Combined SFA", "Townships"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("Legacy SFA") %>% hideGroup("Current SFA") %>% hideGroup("Combined SFA")
+```
+
+
+
+
+
+```{r}
+
+
+townships <- st_transform(townships, st_crs(add_geo))
+
+intersected <- st_intersection(add_geo, townships)
+
+intersected$area_intersected <- st_area(intersected)
+
+add_geo$total_area_tract <- st_area(add_geo)
+
+temp <- add_geo %>%
+ # mutate(area = st_area()) %>%
+  st_drop_geometry()
+
+intersected <- intersected %>%
+  st_drop_geometry()
+
+temp <- left_join(temp, intersected[, c("total_pop", "AMI_80", "area_intersected")], by = c("total_pop", "AMI_80"))
+
+temp$area_ratio <- temp$area_intersected / temp$total_area_tract
+
+temp$total_pop_adjusted <- temp$total_pop * temp$area_ratio
+temp$AMI_80_adjusted <- temp$AMI_80 * temp$area_ratio
+
+
+final_temp <- temp %>%
+  mutate(temp = 1) %>%
+  group_by(temp) %>%
+  summarize(total_pop_adjusted=sum(total_pop_adjusted, na.rm=T),
+            AMI_80_adjusted = sum(AMI_80_adjusted, na.rm=T))
+final_temp
+```
+
+# Madison County
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+madison_county <- get_acs(
+  geography="county", 
+  state="IL",
+  variables=c("total_pop" = "B01001_001"),
+  year=2020, 
+  county = "Madison",
+  geometry=TRUE) %>%
+  mutate(total_pop = estimate) %>%
+  select(geoid=GEOID, geometry, total_pop) 
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=add_geo,
+              group="Geo",
+             # stroke=TRUE,
+              color="lightgreen",
+              dashArray="3",
+              fillOpacity=0.55,
+              popup=paste("GEOID: ", add_geo$geoid, "<br>",
+                          "Total Pop: ", add_geo$total_pop, "<br>",
+                          "80% AMI: ", add_geo$AMI_80)) %>%
+
+    # 
+    # addPolygons(data=combined_sfa,
+    #           group="Combined SFA",
+    #          # stroke=TRUE,
+    #           color="blue",
+    #           dashArray="3",
+    #           fillOpacity=0.55,
+    #           popup=paste("GEOID: ", combined_sfa$GEOID)) %>%
+  addPolygons(data=madison_county,
+              group="Madison",
+              color="red",
+              popup=paste("Township Name: ", madison_county$geoid)) %>%
+
+  
+  
+  addLayersControl(
+    overlayGroups=c( "Geo", "Combined SFA", "Madison"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("Legacy SFA") %>% hideGroup("Current SFA") %>% hideGroup("Combined SFA")
+```
+
+
+```{r}
+mad_geos <- add_geo %>%
+  filter(grepl("Madison County", name))
+```
+
+

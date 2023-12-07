@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?><metadata>
+    <idinfo>
+        <citation>
+            <citeinfo>
+                <pubdate>20230731</pubdate>
+                <title>Low to Moderate Income Population by Block Group</title>
+                <geoform>vector digital data</geoform>
+            </citeinfo>
+        </citation>
+        <descript>
+            <abstract>The Community Development Block Grant (CDBG) program requires that each CDBG funded activity must either principally benefit low- and moderate-income persons, aid in the prevention or elimination of slums or blight, or meet a community development need having a particular urgency because existing conditions pose a serious and immediate threat to the health or welfare of the community and other financial resources are not available to meet that need. With respect to activities that principally benefit low- and moderate-income persons, at least 51 percent of the activity's beneficiaries must be low and moderate income. For CDBG, a person is considered to be of low income only if he or she is a member of a household whose income would qualify as &amp;quot;very low income&amp;quot; under the Section 8 Housing Assistance Payments program. Generally, these Section 8 limits are based on 50% of area median. Similarly, CDBG moderate income relies on Section 8 &amp;quot;lower income&amp;quot; limits, which are generally tied to 80% of area median. These data are from the 2011-2015 American Community Survey (ACS). To learn more about the Low to Moderate Income Populations visit: https://www.hudexchange.info/programs/acs-low-mod-summary-data/Data Dictionary: DD_Low to Moderate Income Populations by Block GroupDate of Coverage: ACS 2011-2015 </abstract>
+            <purpose>This service identifies U.S. Census Block Groups in which 51% or more of the households earn less than 80 percent of the Area Median Income (AMI).</purpose>
+        </descript>
+        <status>
+            <progress>In work</progress>
+            <update>Irregular</update>
+        </status>
+        <spdom>
+            <bounding>
+                <westbc>-179.231101</westbc>
+                <eastbc>179.859666</eastbc>
+                <northbc>71.441059</northbc>
+                <southbc>-14.601806</southbc>
+            </bounding>
+        </spdom>
+        <keywords>
+            <theme>
+                <themekt>None</themekt>
+                <themekey>U.S. Department of Housing and Urban Development</themekey>
+                <themekey>HUD</themekey>
+                <themekey>Low to Moderate Income Areas</themekey>
+                <themekey>Low-Mod</themekey>
+                <themekey>Area Median Income</themekey>
+                <themekey>AMI</themekey>
+                <themekey>Community Development Programs</themekey>
+                <themekey>Block Group</themekey>
+                <themekey>hud.official.content</themekey>
+            </theme>
+            <theme>
+                <themekt>ISO 19115 Topic Category</themekt>
+                <themekey>Boundaries</themekey>
+                <themekey>Economy</themekey>
+                <themekey>Location</themekey>
+                <themekey>Society</themekey>
+            </theme>
+            <theme>
+                <themekt>NGDA Portfolio Themes</themekt>
+                <themekey>Governmental Units, and Administrative and Statistical Boundaries</themekey>
+            </theme>
+            <place>
+                <placekt>None</placekt>
+                <placekey>United States, Puerto Rico, and U.S. Island Areas</placekey>
+            </place>
+        </keywords>
+        <accconst>None</accconst>
+        <useconst>HUD and the dataset and metadata authors assume no responsibility for the use or misuse of the dataset. No warranty, expressed or implied is made with regard to the accuracy of the spatial accuracy, and no liability is assumed by the U.S. Government in general, the dataset creators or the U.S. Department of Housing and Urban Development specifically, as to the spatial or attribute accuracy of the data.</useconst>
+        <ptcontac>
+            <cntinfo>
+                <cntorgp>
+                    <cntorg>U.S. Department of Housing and Urban Development</cntorg>
+                    <cntper>HUD eGIS Team</cntper>
+                </cntorgp>
+                <cntaddr>
+                    <addrtype>mailing</addrtype>
+                    <address>451 7th Street SW rm. 8126</address>
+                    <city>Washington</city>
+                    <state>D.C.</state>
+                    <postal>20410-0001</postal>
+                    <country>US</country>
+                </cntaddr>
+                <cntvoice>202-402-4153</cntvoice>
+                <cntemail>GIShelpdesk@hud.gov</cntemail>
+            </cntinfo>
+        </ptcontac>
+        <browse>
+            <browsen>https://hud.maps.arcgis.com/sharing/rest/content/items/09eceb08d95d429dae9f88fe39826bf1/info/thumbnail/thumbnail.png?</browsen>
+            <browsed>Marginal and subscript text featuring image of geographic feature content. Department of Housing and Urban Development and eGIS logo in bottom right.</browsed>
+            <browset>PNG</browset>
+        </browse>
+        <datacred>U.S. Department of Housing and Urban Development, U.S. Census Bureau</datacred>
+        <secinfo>
+            <secsys>United States Federal Classification System</secsys>
+            <secclass>Unclassified</secclass>
+            <sechandl>At will.</sechandl>
+        </secinfo>
+        <native>Esri ArcGIS 12.9.3.32739</native>
+    </idinfo>
+    <spdoinfo>
+        <direct>Vector</direct>
+        <ptvctinf>
+            <sdtsterm>
+                <sdtstype>GT-polygon composed of chains</sdtstype>
+                <ptvctcnt>220740</ptvctcnt>
+            </sdtsterm>
+        </ptvctinf>
+    </spdoinfo>
+    <eainfo>
+        <detailed>
+            <enttyp>
+                <enttypl>Low to Moderate Income Population by Block Group</enttypl>
+                <enttypd>This service identifies U.S. Census Block Groups in which 51% or more of the households earn less than 80 percent of the Area Median Income (AMI).</enttypd>
+                <enttypds>U.S. Department of Housing and Urban Development</enttypds>
+            </enttyp>
+            <attr>
+                <attrlabl>OBJECTID</attrlabl>
+                <attrdef>Internal feature number.</attrdef>
+                <attrdefs>Esri</attrdefs>
+                <attrdomv>
+                                        					
+                    
+                    <udom>Sequential unique whole numbers that are automatically generated.</udom>
+                                        				
+                
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>SHAPE</attrlabl>
+                <attrdef>Feature geometry.</attrdef>
+                <attrdefs>Esri</attrdefs>
+                <attrdomv>
+                                        					
+                    
+                    <udom>Coordinates defining the features.</udom>
+                                        				
+                
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>GEOID</attrlabl>
+                <attrdef>This is the concatenation of State, County, Tract, and Block Group FIPS codes.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>SOURCE</attrlabl>
+                <attrdef>Not Defined in codebook</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>GEONAME</attrlabl>
+                <attrdef>The name of the block group, place, county, or county subdivision.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>STUSAB</attrlabl>
+                <attrdef>The state abbreviation.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>COUNTYNAME</attrlabl>
+                <attrdef>The Name of the County.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>STATE</attrlabl>
+                <attrdef>The numeric Federal Information Process Standards (FIPS) state code.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>COUNTY</attrlabl>
+                <attrdef>The numeric Federal Information Processing Standards (FIPS) county code.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>TRACT</attrlabl>
+                <attrdef>The numeric code for the census tract. In other publications or reports, the code sometimes appears as a 2 digit decimal XXXX.XX.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>BLKGRP</attrlabl>
+                <attrdef>The block group code.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>LOW</attrlabl>
+                <attrdef>The count of Low-income persons.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>LOWMOD</attrlabl>
+                <attrdef>The count of Low- and Moderate-income persons.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>LMMI</attrlabl>
+                <attrdef>The count of Low-, Moderate-, and Medium-income persons for the NSP programs..</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>LOWMODUNIV</attrlabl>
+                <attrdef>Persons with the potential for being deemed Low-, Moderate- and Middle-income. Use as the denominator for LOW, LOWMOD, and LMMI %'s.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>LOWMOD_PCT</attrlabl>
+                <attrdef>The percentage of Low- and Moderate-income persons. Calculated from LOWMOD divided by LOWMODUNIV.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>UCLOWMOD</attrlabl>
+                <attrdef>The uncapped count of Low- and Moderate-income persons.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>UCLOWMOD_P</attrlabl>
+                <attrdef>The percentage of uncapped Low- and Moderate-income persons. Calculated from UCLOWMOD divided by LOWMODUNIV.</attrdef>
+                <attrdefs>HUD Authors</attrdefs>
+            </attr>
+            <attr>
+                <attrlabl>MOE_LOWMOD_PCT</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>MOE_UCLOWMOD_PCT</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>SHAPE_Length</attrlabl>
+                <attrdef>Length of feature in internal units.</attrdef>
+                <attrdefs>Esri</attrdefs>
+                <attrdomv>
+                                        					
+                    
+                    <udom>Positive real numbers that are automatically generated.</udom>
+                                        				
+                
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>SHAPE_Area</attrlabl>
+                <attrdef>Area of feature in internal units squared.</attrdef>
+                <attrdefs>Esri</attrdefs>
+                <attrdomv>
+                                        					
+                    
+                    <udom>Positive real numbers that are automatically generated.</udom>
+                                        				
+                
+                </attrdomv>
+            </attr>
+        </detailed>
+    </eainfo>
+    <metainfo>
+        <metd>20230731</metd>
+        <metc>
+            <cntinfo>
+                <cntorgp>
+                    <cntorg>U.S. Department of Housing and Urban Development</cntorg>
+                    <cntper>HUD eGIS Team</cntper>
+                </cntorgp>
+                <cntaddr>
+                    <addrtype>mailing</addrtype>
+                    <address>451 7th Street SW rm. 8126</address>
+                    <city>Washington</city>
+                    <state>D.C.</state>
+                    <postal>20410-0001</postal>
+                    <country>US</country>
+                </cntaddr>
+                <cntvoice>202-402-4153</cntvoice>
+                <cntemail>GIShelpdesk@hud.gov</cntemail>
+            </cntinfo>
+        </metc>
+        <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+        <metstdv>FGDC-STD-001-1998</metstdv>
+        <mettc>local time</mettc>
+        <metsi>
+            <metscs>United States Federal Classification System</metscs>
+            <metsc>Unclassified</metsc>
+            <metshd>At will.</metshd>
+        </metsi>
+    </metainfo>
+</metadata>

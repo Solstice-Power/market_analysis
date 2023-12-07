@@ -1,0 +1,1167 @@
+---
+title: "New Jersey"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+
+
+```{r setup, include=FALSE}
+
+source('helper_functions.R')
+load_packages()
+
+
+```
+
+# Overview
+
+We focus on the New Jersey Community Solar Energy Program (CSEP) market. New Jersey residents are served by a variety of electric utilities, seen in the map below. PSE&G and JCP&L are the largest utility providers in New Jersey, serving 84% of the state's population. 
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+temp_util <- st_read("utility_zones/NJ/Electric_Utilities_Territory_Map_of_New_Jersey.shp") %>%
+  mutate(new_name = case_when(
+    grepl("Municipal", NAME) ~ "Municipal",
+    TRUE ~ NAME
+  ))
+
+temp_util <- st_make_valid(temp_util)
+
+nj_geo_qual <- st_read("data/NJ/hud_80pct_80ami/Low_to_Moderate_Income_Population_by_Block_Group.shp") %>%
+  mutate(total_pop = as.integer(Lowmoduniv),
+         geo_tag = case_when(
+           Lowmod_pct >= 0.8 ~ 1,
+           TRUE ~ 0
+         )
+         )
+
+toms_river_geo_zone <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/New Jersey/Tom_River_Qualification_File.geojson")
+  
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+#acs_vars <- load_variables(2021, "acs5")
+
+
+nj_tracts_loaded <- get_acs(
+  geography="tract",
+  state = "NJ",
+  variables = c("B17026_009",
+                "B17026_008",
+                "B17026_007",
+                "B17026_006",
+                "B17026_005",
+                "B17026_004",
+                "B17026_003",
+                "B17026_002",
+                "B25002_002",
+                
+                "S1602_C01_001E",#total
+                "S1602_C01_002E", #spanish
+                "S1602_C01_003E", #indo-euro
+                "S1602_C01_004E", #asian-pacific
+                "S1602_C01_005E", #other
+
+                "B02001_001E",
+                "B02001_002E",
+                "B02001_003E",
+                "B02001_004E",
+                "B02001_005E",
+                "B02001_006E",
+                "B02001_007E",
+                "B02001_008E"),
+year = 2019,
+geometry=TRUE
+) %>%
+  group_by(GEOID) %>%
+  summarize(fams_under_200fpl = estimate[variable=="B17026_009"]+estimate[variable=="B17026_008"]+estimate[variable=="B17026_007"]+
+                                estimate[variable=="B17026_006"]+estimate[variable=="B17026_005"]+estimate[variable=="B17026_004"]+
+                                estimate[variable=="B17026_003"]+estimate[variable=="B17026_002"],
+            fams_total = estimate[variable=="B25002_002"],
+            
+            total_lang_pop = estimate[variable=="S1602_C01_001"],
+            spanish = estimate[variable=="S1602_C01_002"],
+            indo_euro = estimate[variable=="S1602_C01_003"],
+            asian_pacific = estimate[variable=="S1602_C01_004"],
+            other_lang = estimate[variable=="S1602_C01_005"],
+            
+            
+            total_race_pop = estimate[variable=="B02001_001"],
+            white = estimate[variable=="B02001_002"],
+            black = estimate[variable=="B02001_003"],
+            other_race = estimate[variable=="B02001_004"] +estimate[variable=="B02001_006"]+estimate[variable=="B02001_007"]+estimate[variable=="B02001_008"],
+            asian = estimate[variable=="B02001_005"])  %>%
+   mutate(english = total_lang_pop - (spanish+indo_euro+asian_pacific+other_lang))
+
+
+
+```
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state="NJ",
+  variables=c("Median Income" = "S1901_C01_012E"),
+  year=2019, 
+  geometry=TRUE) %>%
+  mutate(MedInc = estimate) %>%
+  select(geoid=GEOID, geometry)
+
+
+
+```
+
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    TRUE ~ "Other"
+  )) %>%
+  filter(State_Name == "New Jersey") %>%
+  mutate(AMI_80_inclusive = AMI_80,
+         AMI_100_inclusive = AMI_100) %>%
+  mutate(AMI_100 = AMI_100 - AMI_80,
+         AMI_80 = AMI_80 - AMI_50,
+         AMI_50 = AMI_50 - AMI_30)
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+
+temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
+  st_make_valid()
+```
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.5,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=temp_util$new_name,
+            title="Solstice NJ Utilities")
+```
+  
+For the CSEP program, both geo- and LMI verifications are allowed. 
+
+
+# Geoqualification
+
+The New Jersey CSEP program allows for geoqualification. Residents must reside within a census block group in which 80 percent or more of the households earn less than 80 percent of the area median income, as determined by data from the U.S. Department of Housing and Urban Development. 
+
+The below map shows the distribution of these households as defined by HUD: 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+
+pal5 <- colorFactor(
+  palette=c("white", "darkred"),
+  domain=nj_geo_qual$geo_tag
+)
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=nj_geo_qual,
+              group="Block Groups",
+             # stroke = TRUE,
+              color = ~pal5(nj_geo_qual$geo_tag),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", nj_geo_qual$GEOID, "<br>",
+                          "Population: ", nj_geo_qual$total_pop)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=nj_geo_qual$geo_tag,
+            title="NJ Geoqualified Census Block Groups")  %>%
+  
+    addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility: ", temp_util$new_name)) %>%
+  
+      addLayersControl(
+    overlayGroups=c( "Block Groups", "Utility Zones"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+
+```
+
+
+The table below shows that New Jersey has relatively limited geoqualification, less than 10% of the state population resides within a qualified census block group. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_table <- nj_geo_qual %>% 
+  st_drop_geometry() %>%
+  mutate(var = 1) %>%
+  group_by(var) %>%
+  summarize(Population = sum(total_pop[geo_tag==1])) %>%
+  mutate(Percentage = Population/sum(nj_geo_qual$total_pop)) %>%
+  select(Population, Percentage)
+  
+
+datatable(temp_table, caption = "New Jersey Geoqualified Population") %>%
+    formatCurrency('Population',currency = "", interval = 3, mark = ",") %>%
+    formatPercentage('Percentage',digit=2) 
+
+
+```
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+temp_table %>%
+#  filter(Geoqualified=="Yes") %>%
+  write_csv("final_data/nj_geo_total.csv")
+
+```
+
+
+When broken down by utility zone, we see most of the customers who are geoqualified reside within PSEG: 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+
+
+temp_util <- st_transform(temp_util, st_crs(nj_geo_qual))
+
+temp_table <- nj_geo_qual %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  mutate(Geoqualified = case_when(
+    geo_tag == 1 ~ "Yes",
+    TRUE ~ "No"
+  )) %>%
+  group_by(Utility) %>%
+  summarize(Geoqualified = sum(total_pop[geo_tag == 1]),
+            NonGeoqualified = sum(total_pop[geo_tag == 0])) %>%
+  mutate(
+    Pct_Geoqualified = Geoqualified/(Geoqualified + NonGeoqualified),
+    Total =Geoqualified +NonGeoqualified  ) %>%
+  #summarize(Population = sum(total_pop)) %>%
+  adorn_totals("row")
+
+temp_table$Pct_Geoqualified[nrow(temp_table)] <- temp_table$Geoqualified[nrow(temp_table)]/temp_table$NonGeoqualified[nrow(temp_table)]
+
+
+datatable(temp_table, caption = "New Jersey Geoqualified Population by Utility") %>%
+    formatCurrency('Geoqualified',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('NonGeoqualified',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatPercentage('Pct_Geoqualified',interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('Total',currency = "", interval = 3, digits = 0, mark = ",") 
+
+
+
+```
+
+
+
+
+
+
+
+## Tom's River Geoqual
+
+There are two data sources that are combined for the geoqualification layer for Toms River:
+
+* Customers must be within the JCP&L utility zone, displayed here on the map
+* Customers must be within a township ([map](https://njogis-newjersey.opendata.arcgis.com/datasets/newjersey::municipal-boundaries-of-nj/explore?filters=eyJNVU5fTEFCRUwiOlsiVG9tcyBSaXZlciBUb3duc2hpcCIsIk1hbmNoZXN0ZXIgVG93bnNoaXAiLCJTb3V0aCBUb21zIFJpdmVyIEJvcm91Z2giLCJCZXJrZWxleSBUb3duc2hpcCIsIklzbGFuZCBIZWlnaHRzIEJvcm91Z2giLCJTZWFzaWRlIEhlaWdodHMgQm9yb3VnaCIsIkxhdmFsbGV0dGUgQm9yb3VnaCIsIkJyaWNrIFRvd25zaGlwIiwiTGFrZXdvb2QgVG93bnNoaXAiLCJKYWNrc29uIFRvd25zaGlwIl19&location=40.018126%2C-74.258297%2C11.00)) adjacent to Tom’s River, including:
+  * Lakewood
+  * Toms River
+  * Brick
+  * Jackson
+  * Manchester
+  * Berkeley
+  * S. Toms River
+  * Seaside Heights
+  * Lavallette
+  * Island Heights
+
+These two zones are intersected and combined into the below geojson file: 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+mapview(toms_river_geo_zone,layer.name = "Toms River Geoqualification Zone")
+```
+
+
+
+# LMI Qualificaiton
+
+Self-attestation by the customer that their household income is less than 80 percent of the area median income, as determined by data from the U.S. Department of Housing and Urban Development, provided on a standard form to be approved by the Board and signed by the customer and recorded through an authorized administrator procured by the EDCs
+
+
+We use HUD data that summarizes the total number of households living at or under 80% AMI. This is the total LMI addressable market in New Jersey that could be determined via self-attestation. 
+
+
+
+
+
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+nj_tracts <- get_acs(
+  geography="tract", 
+  state="NJ",
+  variables=c("Total_Pop" = "B01001_001","snap_hh" = "B22001_002","snap_pop" = "B19058_002",
+              "Total_HH" = "B25002_002"
+              
+              ),
+  year=2019, 
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(total_pop = estimate[variable=="Total_Pop"],
+            snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable=="snap_pop"],
+            total_hh = estimate[variable=="Total_HH"])
+
+
+
+
+
+
+
+total_nj_tracts <- cbind(add_geo, nj_tracts)
+
+```
+
+
+
+## Low and Moderate Income
+
+The table below shows different proxies for LMI households in New Jersey: <30%, 30-50%, 50-80%, 80-100% AMI households. The first table shows these totals by utility zones. Totals for households and population are included for context. 
+
+The second table shows a common aggregation for Low and Moderate income, as well as a combined LMI definition. A proxy for low income is households earning below 50% AMI, whereas medium income is defined as 50-100% AMI. Combining these groups (households earning up to 100% AMI) is a common definition for LMI households.  
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+temp_tracts <- st_transform(total_nj_tracts, st_crs(temp_util)) %>%
+  st_make_valid()
+
+
+temp_table <- temp_tracts %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(
+            `<30%` = sum(AMI_30),
+            `30-50%` = sum(AMI_50),
+            `50-80%` = sum(AMI_80),
+            `80-100%` = sum(AMI_100),
+          #  `100% AMI HHs` = sum(AMI_100),
+           # `Total Under 80%` = sum(AMI_80_inclusive),
+
+         #   `SNAP HHs` = sum(snap_hh),
+            `State Total HHs` = sum(total_hh),
+            `State Total Pop` = sum(total_pop))%>%
+   adorn_totals("row") 
+
+
+
+datatable(temp_table, caption = "New Jersey Households by AMI Percentage by Utility") %>%
+  formatCurrency('<30%',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('30-50%',currency = "", interval = 3, digits = 0, mark = ",") %>%
+
+  formatCurrency('50-80%',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('80-100%',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+
+ # formatCurrency('Total Under 80%',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+#  formatCurrency('SNAP HHs',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('State Total HHs',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('State Total Pop',currency = "", interval = 3, digits = 0, mark = ",") #%>%
+  # formatCurrency('HH <200% FPL',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  # formatCurrency('Total HHs',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  # formatPercentage('Percent <200% FPL', digits = 2) 
+
+temp_table <- temp_tracts %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(
+            `Low Income` = sum(AMI_30) + sum(AMI_50),
+          #  `100% AMI HHs` = sum(AMI_100),
+           # `Total Under 80%` = sum(AMI_80_inclusive),
+            `Moderate Income` = sum(AMI_80) + sum(AMI_100),
+            `LMI Total` = sum(AMI_30) + sum(AMI_50)+sum(AMI_80) + sum(AMI_100),
+         #   `SNAP HHs` = sum(snap_hh),
+            `State Total HHs` = sum(total_hh),
+            `State Total Pop` = sum(total_pop))%>%
+   adorn_totals("row") 
+
+datatable(temp_table, caption = "New Jersey Households by LMI Status by Utility") %>%
+  formatCurrency('Low Income',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('Moderate Income',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('LMI Total',currency = "", interval = 3, digits = 0, mark = ",") %>%
+
+ # formatCurrency('Total Under 80%',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+#  formatCurrency('SNAP HHs',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('State Total HHs',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('State Total Pop',currency = "", interval = 3, digits = 0, mark = ",") #%>%
+  # formatCurrency('HH <200% FPL',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  # formatCurrency('Total HHs',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  # formatPercentage('Percent <200% FPL', digits = 2) 
+
+
+
+```
+
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+# LMI write out - how many people are within 
+
+temp_table <- temp_tracts %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(
+    #`Geo-Qual Population` = sum()
+            `Pop under 80 AMI` = sum(AMI_80_inclusive),
+             `SNAP HH` = sum(snap_hh),
+            `Total Population` = sum(total_pop)) %>%
+  arrange(desc(`Pop under 80 AMI`)) %>%
+  adorn_totals("row")
+
+  
+
+datatable(temp_table, caption = "Interim Disadvantaged Communities (DAC) Population by Utiliy Zone") #%>%
+  # formatCurrency('Population',currency = "", interval = 3, mark = ",") %>%
+  # formatPercentage('Percentage', digits = 2)
+
+
+```
+
+
+
+
+The below map shows the distribution of LMI households in New Jersey, using the combined up 100% AMI definition
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+pal5 <- colorNumeric(
+  palette=c("Oranges"),
+  domain=add_geo$AMI_100_inclusive
+)
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=add_geo,
+              group="LMI",
+             # stroke = TRUE,
+              color = ~pal5(add_geo$AMI_100_inclusive),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", add_geo$GEOID, "<br>",
+                          "Population < 80% AMI: ", add_geo$AMI_100_inclusive)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=add_geo$AMI_100_inclusive,
+            title="NJ LMI Population")  %>%
+  
+    addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility: ", temp_util$new_name)) %>%
+  
+      addLayersControl(
+    overlayGroups=c( "LMI", "Utility Zones"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+
+```
+
+
+
+## Low Income
+
+An alternative definition of Low income are households earning up to 200% of the federal poverty line. The table below shows the number of households in New Jersey by Utility Zone. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_tracts <- st_transform(nj_tracts_loaded, st_crs(temp_util)) %>%
+  st_make_valid()
+
+
+temp_loaded_table <- temp_tracts %>%
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(
+    `HH <200% FPL` = sum(fams_under_200fpl),
+    `Total HHs` = sum(fams_total)
+  )%>%
+  adorn_totals("row") %>%
+    mutate(`Percent <200% FPL` = `HH <200% FPL` /`Total HHs`)  
+
+
+
+datatable(temp_loaded_table, caption = "New Jersey Low Income Population by Utility") %>%
+  # formatCurrency('80% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  # formatCurrency('100% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  # formatCurrency('SNAP',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  # formatCurrency('Total Pop',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('HH <200% FPL',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('Total HHs',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatPercentage('Percent <200% FPL', digits = 2) 
+
+
+
+
+```
+
+
+The map below shows the distribution of Low Income population in New Jersey. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+nj_tracts_loaded <- nj_tracts_loaded[!st_geometry_type(nj_tracts_loaded) %in% c("GEOMETRYCOLLECTION"), ]
+
+nj_tracts_loaded <- st_transform(nj_tracts_loaded, 4326)
+
+pal5 <- colorNumeric(
+  palette=c("Oranges"),
+  domain=nj_tracts_loaded$fams_under_200fpl
+)
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=nj_tracts_loaded,
+              group="Low Income",
+              color = ~pal5(nj_tracts_loaded$fams_under_200fpl),
+              fillOpacity=0.75,
+              popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                          "Population < 200% FPL: ", nj_tracts_loaded$fams_under_200fpl)) %>%
+  addLegend("bottomright",
+            pal=pal5,
+            group="Low Income",
+            values = nj_tracts_loaded$fams_under_200fpl,
+            title="NJ Low Income Population") %>%
+    addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility: ", temp_util$new_name)) %>%
+  
+      addLayersControl(
+    overlayGroups=c( "Low Income", "Utility Zones"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+
+```
+
+
+
+
+
+
+
+## Language
+
+For Language, we use the summary table [S1602](https://data.census.gov/table?q=S1602&g=040XX00US34,34$1400000) for language spoken at home for the number of households over 5 years of age. We use the default categories from the summary table. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_tracts <- st_transform(nj_tracts_loaded, st_crs(temp_util)) %>%
+  st_make_valid()
+
+
+temp_loaded_table <- temp_tracts %>%
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(
+    `Total Households` = sum(total_lang_pop),
+    English = sum(english),
+    Spanish = sum(spanish),
+    `Indo-European` = sum(indo_euro),
+    `Asian-Pacific` = sum(asian_pacific),
+    Other = sum(other_lang)
+  )%>%
+  adorn_totals("row") 
+
+
+
+datatable(temp_loaded_table, caption = "New Jersey Languages by Utility for Households over 5 Years Old") %>%
+  formatCurrency('Total Households',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('English',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('Spanish',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('Indo-European',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('Asian-Pacific',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('Other',currency = "", interval = 3, digits = 0, mark = ",") 
+
+
+
+
+```
+
+
+The map below shows the geographic distribution of language concentration in New Jersey. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+nj_tracts_loaded <- nj_tracts_loaded[!st_geometry_type(nj_tracts_loaded) %in% c("GEOMETRYCOLLECTION"), ]
+
+nj_tracts_loaded <- st_transform(nj_tracts_loaded, 4326)
+
+pal <- colorNumeric(
+  palette = "Oranges",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$english)
+
+pal1 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$spanish)
+
+pal2 <- colorNumeric(
+  palette = "Blues",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$indo_euro)
+
+pal3 <- colorNumeric(
+  palette = "Reds",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$asian_pacific)
+
+pal4 <- colorNumeric(
+  palette = "Greens",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$other_lang)
+
+
+
+
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+
+    #English
+  addPolygons( data = nj_tracts_loaded,
+    group="English", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal(english),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "English: ", nj_tracts_loaded$english, "<br>",
+                "Spanish: ", nj_tracts_loaded$spanish,"<br>",
+                "Indo-European: ", nj_tracts_loaded$indo_euro,"<br>",
+                "Asian-Pacific: ", nj_tracts_loaded$asian_pacific,"<br>",
+                "Other: ", nj_tracts_loaded$other_lang)
+
+  ) %>%
+  
+      #Spanish
+  addPolygons( data = nj_tracts_loaded,
+    group="Spanish", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal1(spanish),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "English: ", nj_tracts_loaded$english, "<br>",
+                "Spanish: ", nj_tracts_loaded$spanish,"<br>",
+                "Indo-European: ", nj_tracts_loaded$indo_euro,"<br>",
+                "Asian-Pacific: ", nj_tracts_loaded$asian_pacific,"<br>",
+                "Other: ", nj_tracts_loaded$other_lang)
+
+  ) %>%
+
+  
+      #indo_euro
+  addPolygons( data = nj_tracts_loaded,
+    group="Indo-European", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal2(indo_euro),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "English: ", nj_tracts_loaded$english, "<br>",
+                "Spanish: ", nj_tracts_loaded$spanish,"<br>",
+                "Indo-European: ", nj_tracts_loaded$indo_euro,"<br>",
+                "Asian-Pacific: ", nj_tracts_loaded$asian_pacific,"<br>",
+                "Other: ", nj_tracts_loaded$other_lang)
+  ) %>%
+
+  
+      #asian-pacific
+  addPolygons( data = nj_tracts_loaded,
+    group="Asian-Pacific", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal3(asian_pacific),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "English: ", nj_tracts_loaded$english, "<br>",
+                "Spanish: ", nj_tracts_loaded$spanish,"<br>",
+                "Indo-European: ", nj_tracts_loaded$indo_euro,"<br>",
+                "Asian-Pacific: ", nj_tracts_loaded$asian_pacific,"<br>",
+                "Other: ", nj_tracts_loaded$other_lang)
+  ) %>%
+
+  
+      #Other
+  addPolygons( data = nj_tracts_loaded,
+    group="Other", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal4(other_lang),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "English: ", nj_tracts_loaded$english, "<br>",
+                "Spanish: ", nj_tracts_loaded$spanish,"<br>",
+                "Indo-European: ", nj_tracts_loaded$indo_euro,"<br>",
+                "Asian-Pacific: ", nj_tracts_loaded$asian_pacific,"<br>",
+                "Other: ", nj_tracts_loaded$other_lang)
+    
+  ) %>%
+  
+    addLayersControl(
+    baseGroups=c( "English", "Spanish", "Indo-European", "Asian-Pacific", "Other"),  
+
+  )
+
+
+map
+
+```
+
+
+
+## Race
+
+We use the American Community Survey table [B02001](https://data.census.gov/table/ACSDT1Y2022.B02001?q=B02001:+Race) for race. We combine Native Hawaiian and Other Pacific Islander, American Indian and Alaska Native, Two or More Races, and Some other race categories into one 'Other' category. Dis aggregation is available upon request.  
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_tracts <- st_transform(nj_tracts_loaded, st_crs(temp_util)) %>%
+  st_make_valid()
+
+
+temp_loaded_table <- temp_tracts %>%
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(
+    `Total Population` = sum(total_race_pop),
+    White = sum(white),
+    Black = sum(black),
+    Asian = sum(asian),
+    Other = sum(other_race)
+  )%>%
+  adorn_totals("row") 
+
+
+
+datatable(temp_loaded_table, caption = "New Jersey Race by Utility Zone") %>%
+  formatCurrency('Total Population',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('White',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('Black',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('Asian',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('Other',currency = "", interval = 3, digits = 0, mark = ",") 
+
+
+
+
+```
+
+
+The map below shows the distribution of Race in New Jersey. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+nj_tracts_loaded <- nj_tracts_loaded[!st_geometry_type(nj_tracts_loaded) %in% c("GEOMETRYCOLLECTION"), ]
+
+nj_tracts_loaded <- st_transform(nj_tracts_loaded, 4326)
+
+pal <- colorNumeric(
+  palette = "Oranges",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$white)
+
+pal1 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$black)
+
+pal2 <- colorNumeric(
+  palette = "Blues",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$asian)
+
+pal3 <- colorNumeric(
+  palette = "Reds",
+ # reverse=TRUE,
+  domain = nj_tracts_loaded$other_race)
+
+
+
+
+
+
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+
+    #English
+  addPolygons( data = nj_tracts_loaded,
+    group="White", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal(white),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "White: ", nj_tracts_loaded$white, "<br>",
+                "Black: ", nj_tracts_loaded$black,"<br>",
+                "Asian: ", nj_tracts_loaded$asian,"<br>",
+                "Other: ", nj_tracts_loaded$other_race)
+
+  ) %>%
+  
+      #Black
+  addPolygons( data = nj_tracts_loaded,
+    group="Black", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal1(black),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "White: ", nj_tracts_loaded$white, "<br>",
+                "Black: ", nj_tracts_loaded$black,"<br>",
+                "Asian: ", nj_tracts_loaded$asian,"<br>",
+                "Other: ", nj_tracts_loaded$other_race)
+
+
+  ) %>%
+
+  
+      #asian
+  addPolygons( data = nj_tracts_loaded,
+    group="Asian", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal2(asian),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "White: ", nj_tracts_loaded$white, "<br>",
+                "Black: ", nj_tracts_loaded$black,"<br>",
+                "Asian: ", nj_tracts_loaded$asian,"<br>",
+                "Other: ", nj_tracts_loaded$other_race)
+
+
+  ) %>%
+
+  
+      #other
+  addPolygons( data = nj_tracts_loaded,
+    group="Other", 
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal3(other_race),
+    popup=paste("GEOID: ", nj_tracts_loaded$GEOID, "<br>",
+                "White: ", nj_tracts_loaded$white, "<br>",
+                "Black: ", nj_tracts_loaded$black,"<br>",
+                "Asian: ", nj_tracts_loaded$asian,"<br>",
+                "Other: ", nj_tracts_loaded$other_race)
+
+
+  ) %>%
+
+    addLayersControl(
+    baseGroups=c( "White", "Black", "Asian","Other"),  
+
+  )
+
+
+map
+
+```
+
+
+
+
+# LIFT Solar
+
+There are 145 community solar projects in New Jersey according to the LIFT solar database. 
+
+
+
+```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
+
+lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
+
+lift_df <- separate(lift_df, GeoCode, into = c("long", "lat"), sep = ",")
+
+lift_df <- st_as_sf(lift_df, coords = c("long", "lat"), crs = st_crs(get_tracts))
+
+
+
+temp_df <- add_geo %>%
+  filter(State_Name == "New Jersey") 
+
+temp_lift <- lift_df %>%
+  filter(State == "New Jersey")
+
+
+pal_potLMI <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Potential...LMI.Subscribers)
+
+pal_cap <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Project.Capacity.KW.AC)
+
+
+
+pal <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80_inclusive)
+
+pal2 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80_Pct)
+
+pal3 <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = total_nj_tracts$snap_hh)
+
+library(tidyr)
+
+
+
+
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$new_name)
+  ) %>%
+  
+  addPolygons(
+    data = temp_df,
+    group="80% AMI",  # This should be consistent with the group name in the addLegend function
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal(AMI_80_inclusive),
+    popup=paste("Tract: ", temp_df$geoid, "<br>", 
+                "HHs at 80% AMI: ", temp_df$AMI_80_inclusive)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="80% AMI",  # This should be consistent with the group name in the addPolygons function
+            pal = pal,
+            values = temp_df$AMI_80_inclusive,
+            title="Number of HHs at 80% AMI"
+  ) %>%
+  
+  # addPolygons(
+  #   data=nm_df,
+  #   group="80% AMI Percent",  # This should be consistent with the group name in the addLegend function
+  #   stroke=FALSE,
+  #   smoothFactor=0.2,
+  #   fillOpacity=0.7,
+  #   color=~pal2(AMI_80_Pct),
+  #   popup=paste("Tract: ", nm_df$geoid, "<br>", 
+  #               "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)
+  # ) %>%
+  # 
+  # addLegend("bottomleft",
+  #           group="80% AMI Percent",  # This should be consistent with the group name in the addPolygons function
+  #           pal = pal2,
+  #           values = nm_df$AMI_80_Pct,
+  #           title="Percent of HHs at 80% AMI"
+  # ) %>%
+  
+  addPolygons(
+    data=total_nj_tracts,
+    group="SNAP",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal3(snap_hh),
+    popup=paste("Tract: ", total_nj_tracts$GEOID, "<br>",
+                "Number of HHs Receiving SNAP: ", total_nj_tracts$snap_hh)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="SNAP",
+            pal = pal3,
+            values = total_nj_tracts$snap_hh,
+            title="Number of HHs Receiving SNAP:"
+  ) %>%
+  
+    addCircleMarkers(data = temp_lift,
+                   group="Potential LMI Subscribers",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(temp_lift$Potential...LMI.Subscribers), 
+                   color = ~pal_potLMI(Potential...LMI.Subscribers)) %>%
+  addLegend("bottomright",
+            group="Potential LMI Subscribers",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_potLMI,
+            values = temp_lift$Potential...LMI.Subscribers,
+            title="Potential LMI Subscribers") %>%
+
+    ## Project Capacity ## 
+  
+  addCircleMarkers(data = temp_lift,
+                   group="Project Capacity",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(temp_lift$Project.Capacity.KW.AC), 
+                   color = ~pal_cap(Project.Capacity.KW.AC)) %>%
+  addLegend("topleft",
+             group="Project Capacity",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_cap,
+            values = temp_lift$Project.Capacity.KW.AC,
+            title="Project Capacity") %>%
+
+
+  addLayersControl(
+    overlayGroups=c( "80% AMI", "Utility Zones", "SNAP","Potential LMI Subscribers", "Project Capacity"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+map %>%
+ hideGroup("SNAP") %>% hideGroup("80% AMI") %>% hideGroup("Project Capacity")
+
+```
+
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+temp_table %>%
+  filter(Utility=="Total") %>%
+  write_csv("final_data/nj_lmi_total.csv")
+
+
+```
+
+
+
+

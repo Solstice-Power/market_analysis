@@ -1,0 +1,211 @@
+---
+title: "Delaware"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+
+```{r setup, include=FALSE}
+
+source('helper_functions.R')
+load_packages()
+
+
+
+```
+
+
+# Overivew
+
+Delaware's [Community Energy Facilities](https://depsc.delaware.gov/2022/02/01/community-energy-facilities-webpage/) program has an LMI carveout of 15%. LMI customers are defined via geoqualificaiton and income verification/self-attestation. Limited number and availability of utility data requires us to forego the utility overlays for Delaware. We will focus instead on estimating the total population considered for geo- and LMI qualification. 
+
+# Geoqualification
+
+Customers are defined as geoqualified if they reside in a census block "where the median household income is at or below 200% of the U.S. Federal Poverty Guidelines or 60% of the state median household income published by the United States Census Bureau, whichever is greater". 
+
+Note, census blocks do not contain income information. This data is only available at the census block group or tract level. To approximate the population geoqualified in Delaware, we use a modified definition. Using 2021 5-Year ACS data, we define a geoqualified block group as one where at least 50% of the population is at or below 200% of the [Federal Poverty Line](https://data.census.gov/table?q=c17002&g=040XX00US10,10$1400000,10$1500000). 
+    
+There are 706 block groups in Delaware, a total of 77 are tagged as geoqualified using this method. The below map shows our tagged census block groups: 
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+get_blocks <- get_acs(
+  geography="block group", 
+  state="DE",
+  variables=c("Total" = "C17002_001",
+              "group1" = "C17002_002",
+              "group2" = "C17002_003",
+              "group3" = "C17002_004",
+              "group4" = "C17002_005",
+              "group5" = "C17002_006",
+              "group6" = "C17002_007",
+              "group7" = "C17002_008",
+              "snap_hh" = "B19123_002",
+              "snap_pop" = "B19058_002"),
+  year=2021, 
+  geometry=TRUE)  
+
+
+####
+
+get_blocks <- get_blocks %>%
+  group_by(GEOID, geometry)  %>%
+  summarize(total_pop = estimate[variable=="Total"],
+            total_under_200FPL =
+                          estimate[variable=="group1"] + 
+                          estimate[variable=="group2"] +
+                          estimate[variable=="group3"] +
+                          estimate[variable=="group4"] +
+                          estimate[variable=="group5"] +
+                          estimate[variable=="group6"] ,
+            snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable== "snap_pop"]) %>%
+  mutate(pct_under_200FPL = total_under_200FPL / total_pop) %>%
+  mutate(geo_tag = case_when(
+    pct_under_200FPL >= 0.5 ~ 1,
+    TRUE ~ 0
+  ))
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+pal5 <- colorFactor(
+  palette=c("lightgrey", "darkgreen"),
+  domain=get_blocks$geo_tag
+)
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=get_blocks,
+              group="Block Groups",
+             # stroke = TRUE,
+              color = ~pal5(get_blocks$geo_tag),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", get_blocks$GEOID, "<br>",
+                          "Percent under 200% FPL: ", get_blocks$pct_under_200FPL, "<br>",
+                          "Number under 200% FPL: ", get_blocks$total_under_200FPL)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=get_blocks$geo_tag,
+            title="DE Geoqualified Census Block Groups") 
+
+  
+```
+
+
+The total popoulation, population at or below 200% and SNAP households and population are summarized below. Approximately 25% of the total population in Delaware reside in census blocks geoqualified under the CEF program.  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_table <- get_blocks %>% 
+  st_drop_geometry() %>%
+    mutate(Geoqualified = case_when(
+    geo_tag == 1 ~ "Yes",
+    TRUE ~ "No"
+  )) %>%
+  group_by(Geoqualified) %>%
+
+  summarize(Population = sum(total_pop),
+            `Population Under 200% FPL` = sum(total_under_200FPL),
+            SNAP_HH = sum(snap_hh),
+            SNAP_Pop = sum(snap_pop)) %>%
+  adorn_totals("row")
+
+
+datatable(temp_table, caption = "Delaware Geoqualified Population") %>%
+    formatCurrency('Population',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('Population Under 200% FPL',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('SNAP_HH',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('SNAP_Pop',currency = "", interval = 3, digits = 0, mark = ",")
+
+
+```
+
+
+
+
+# LMI Qualificaiton
+
+There exists a number of options to verify customer income. Including:
+
+    * (1) Proof of income of the account holder (e.g., pay stub or W2)
+    * (2) proof of participation in a low income discount program including Medicaid, SSI, TANF, GA, WIC, LIHEAP, SNAP or food stamps
+    * (3) proof that the Low-income Customer lives in a census block where the median household income is at or below 200% of the U.S. Federal Poverty Guidelines or 60% of the state median household income published by the United States Census Bureau, whichever is greater
+    * (4) by living in a low-income master-metered building
+    * (5) A written attestation by the Low-income Customer that their total household income is at or below 200% of the Federal Poverty Guidelines, or 60% of the state median household income published by the United States Census bureau, whichever is greater
+    * NOTE For owners or operators of master-metered buildings, a written attestation that their tenants meet the income eligibility requirements for Low-income Customers
+    
+We use SNAP or food stamp recipient data as a proxy for low income discount programs. To keep consistency with the geoqualified tracts, we use block groups, hence Medicaid population is not available at this level. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+pal5 <- colorNumeric(
+  palette=c("Oranges"),
+  domain=get_blocks$snap_pop
+)
+
+pal6 <- colorNumeric(
+  palette=c("Greens"),
+  domain=get_blocks$total_under_200FPL
+)
+
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=get_blocks,
+              group="SNAP",
+             # stroke = TRUE,
+              color = ~pal5(get_blocks$snap_pop),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", get_blocks$GEOID, "<br>",
+                          "Percent under 200% FPL: ", get_blocks$pct_under_200FPL, "<br>",
+                          "Number under 200% FPL: ", get_blocks$total_under_200FPL)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            group="SNAP",
+            values=get_blocks$snap_pop,
+            title="DE SNAP Population")  %>%
+  
+  addPolygons(data=get_blocks,
+              group="200% FPL",
+             # stroke = TRUE,
+              color = ~pal6(get_blocks$total_under_200FPL),
+              fillOpacity=0.65,
+              popup=paste("Census Block Group: ", get_blocks$GEOID, "<br>",
+                          "Percent under 200% FPL: ", get_blocks$pct_under_200FPL, "<br>",
+                          "Number under 200% FPL: ", get_blocks$total_under_200FPL)) %>%
+  addLegend(position="bottomleft",
+            pal=pal6,
+            group= "200% FPL",
+            values=get_blocks$total_under_200FPL,
+            title="DE Total Under 200% FPL")  %>%
+  
+    addLayersControl(
+    overlayGroups=c( "SNAP", "200% FPL"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("SNAP")
+
+  
+
+  
+```
+
+
+
+
+# LIFT Solar
+
+
+No projects in LIFT solar database in Delaware. 
+
+
+
+

@@ -1,0 +1,619 @@
+---
+title: "California"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+
+# Overview
+
+California represents the largest residential and potentially the largest community solar market in the United States. The latest 2023 Q3 Woods Mackenzie report estimates California's community solar PV will increase to 540 mWh, representing approximately a third of the United State's total community solar market. Essential to accessing this market for Solstice is understanding how many individuals make up the geo- and LMI qualifications. Solstice considers the Net Value Billing Tariff (NVBT) program in California. 
+
+
+
+```{r setup, include=FALSE}
+
+# **to-do** 
+# 
+# 1. add the CCA terriorties + penetration 
+# 2. add CS saturation layer - how much current CS is in the market currently? 
+# 3. add in the EIA number of households 
+
+source('helper_functions.R')
+load_packages()
+
+
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+state_list <- c("IL", "MA", "MN", "NJ", "NM", "NY",  "CA", "DE")
+
+hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") 
+
+temp_util <- hifld_df %>%
+  filter(ID %in% c(15473, 10817, 5701)) %>%
+  mutate(new_name = case_when(
+    ID == 15473 ~ "Public Service Company",
+    ID == 10817 ~ "Xcel",
+    ID == 5701 ~ "El Paso Electric"
+  ))
+census_api_key('ba3d95cae3658f3145daf7f66119ed58a52aaca3')
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state=state_list,
+  variables=c("Median Income" = "S1901_C01_012E"),
+  year=2017, 
+  geometry=TRUE) %>%
+  mutate(MedInc = estimate) %>%
+  select(geoid=GEOID, geometry)
+
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 6 ~ "California",
+    TRUE ~ "Other"
+  ))
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+# 
+# ny_geo <- add_geo %>%
+#   filter(State_Name=="New York")
+
+
+
+```
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+add_geo <- add_geo %>%
+  filter(State_Name=="California")
+
+ca_tracts <- get_acs(
+  geography="tract", 
+  state="CA",
+  variables=c("Total_Pop" = "B01001_001"),
+  year=2019, 
+  geometry=TRUE) 
+
+ca_tracts$Tract <- as.double(ca_tracts$GEOID)
+
+# utility download
+
+temp_util <- st_read("data/CA/utils/Electric_Load_Serving_Entities_(IOU_%26_POU).shp")
+temp_util <- st_transform(temp_util, crs = st_crs(ca_tracts))
+temp_util <- st_zm(temp_util, drop = TRUE)
+
+
+
+
+# CalEnviroScreen Data Download
+
+
+
+#%>%
+ # filter(CIscoreP >= 75) %>%
+ # st_drop_geometry()
+
+
+
+
+temp <- temp_util %>%
+  select(OBJECTID, geometry)
+
+env_df <- st_read("/Users/jacobford/Downloads/calenviroscreen40shpf2021shp/CES4 Final Shapefile.shp") 
+
+env_df <- st_transform(env_df, crs = st_crs(ca_tracts))
+
+
+ca_geo_qual <- st_read("data/CA/Low-income_or_Disadvantaged_Communities_Designated_by_California/Low-income_or_Disadvantaged_Communities_Designated_by_California.shp")
+
+ca_geo_qual <- st_transform(ca_geo_qual, crs = st_crs(ca_tracts))
+
+```
+
+
+## Utilities {.tabset}
+
+California utilities are either investor owned (IOU) or publicly owned (POU). The maps below show the IOU/POU breakdown, in addition to the full categorical breakdown. Pacific Gas & Electric Company (PG&E) is the largest utility provider in California. Two other utilites are included in our analysis for California's NVBT program: San Diego Gas & Electric (SDG&E) and Southern California Edison (SCE)
+
+### IOU-POU
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$Type
+)
+# Create the leaflet map
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data = temp_util,
+              group = "Utility Zones",
+              stroke = FALSE,
+              color = ~pal5(temp_util$Type),
+              dashArray = "3",
+              fillOpacity = 0.5,
+              popup = paste("Utility Zone: ", temp_util$Acronym, "<br>",
+                            "Utility Name: ", temp_util$Utility)) %>%
+
+
+  addLegend(position = "bottomright",
+            pal = pal5,
+            group = "Utility Zones",
+            values = temp_util$Type,
+            title = "California Utilities") 
+```
+
+
+### California Utilities
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$Acronym
+)
+# Create the leaflet map
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data = temp_util,
+              group = "Utility Zones",
+              stroke = FALSE,
+              color = ~pal5(temp_util$Acronym),
+              dashArray = "3",
+              fillOpacity = 0.5,
+              popup = paste("Utility Zone: ", temp_util$Acronym, "<br>",
+                            "Utility Name: ", temp_util$Utility)) %>%
+
+
+  addLegend(position = "bottomright",
+            pal = pal5,
+            group = "Utility Zones",
+            values = temp_util$Acronym,
+            title = "California Utilities") 
+```
+
+
+
+# Geoqualification
+
+There are three main methods to geoqualify households in California:
+
+
+  * Underserved community - low-income community under Health and Safety Code Sec. 39713
+  * CalEnviroScreen disadvantaged community top quartile (ClscoreP)
+  * California Native American tribe Public Resources Code Sec. 21073
+
+The [California Energy Commission](https://cecgis-caenergy.opendata.arcgis.com/datasets/CAEnergy::low-income-or-disadvantaged-communities-designated-by-california/explore?location=37.177590%2C-119.274072%2C7.63) publishes the state specific low-income or disadvantaged communities. Census tracts with median household incomes at or below 80 percent of the statewide median income or with median household incomes at or below the threshold designated as low income by the Department of Housing and Community Development’s list of state income limits adopted under Healthy and Safety Code section 50093 and/or Census tracts receiving the highest 25 percent of overall scores in CalEnviroScreen 4.0 or Census tracts lacking overall scores in CalEnviroScreen 4.0 due to data gaps, but receiving the highest 5 percent of CalEnviroScreen 4.0 cumulative population burden scores or Census tracts identified in the 2017 DAC designation as disadvantaged, regardless of their scores in CalEnviroScreen 4.0 or Lands under the control of federally recognized Tribes. 
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+temp <- ca_tracts %>%
+  st_drop_geometry()
+
+
+
+temp <- merge(temp, ca_geo_qual, by = c("GEOID"))
+
+temp <- st_as_sf(temp)
+
+temp$Population <- temp$estimate
+
+```
+
+The table below shows the total geoqualified population in California. 58% of the state is geoqualified. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_table <- temp %>% 
+  st_drop_geometry() %>%
+  mutate(var = 1) %>%
+  group_by(var) %>%
+  summarize(Population = sum(Population)) %>%
+  select(`Population Geoqualified` = Population ) %>%
+  mutate(`Population Total` = sum(ca_tracts$estimate)) %>%
+  mutate(Percent = `Population Geoqualified`/`Population Total`) %>%
+  select(`Population Geoqualified`, Percent, `Population Total`)
+
+
+datatable(temp_table, caption = "California Geoqualified Population") %>%
+    formatCurrency('Population Geoqualified',currency = "", interval = 3, mark = ",") %>%
+    formatPercentage('Percent',digit=2) %>%
+
+    formatCurrency('Population Total',currency = "", interval = 3, mark = ",")
+
+
+```
+
+
+
+Out of the nearly 23 million living in geoqualified zones, 36% reside within SCE, 30% reside within PG&E. The remainder are covered by POU or other utility zones not considered by Solstice in California's NVBT. Interestingly, while PG&E is the largest utility in California, SCE represents the largest share of geoqualified population in California. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+tot_ca_pop <- sum(ca_tracts$estimate)
+
+iou_utils <- temp_util %>%
+  filter(Acronym %in% c("PG&E", "SCE", "SDG&E")) %>%
+ # filter(Type=="IOU") %>%
+  st_make_valid()
+
+
+temp_table <- temp %>%
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(iou_utils %>% select(Utility=Acronym)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(Population = sum(Population)) %>%
+  mutate(Percentage = Population/tot_ca_pop) %>%
+  adorn_totals("row")
+
+# 
+# temp <- ca_tracts %>% 
+#   st_point_on_surface() %>%
+#   st_make_valid() %>%
+#   st_join(ca_geo_qual %>% select(GEOID)) %>%
+#   st_drop_geometry() %>%
+#   filter(!is.na(GEOID.y)) %>%
+#   mutate(var = 1) %>%
+#   group_by(var) %>%
+# 
+#   summarize(Population = sum(estimate)
+#             ) %>%
+#   arrange(desc(Population)) %>%
+#   adorn_totals("row") %>%
+#   mutate(Percentage = Population / tot_ca_pop )
+
+  
+
+datatable(temp_table, caption = "California Geoqualified Population by Utiliy Zone")%>%
+  formatCurrency('Population',currency = "", interval = 3, mark = ",") %>%
+  formatPercentage('Percentage', digits = 2)
+
+
+
+
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+temp_table %>%
+  filter(Utility=="Total") %>%
+  write_csv("final_data/ca_geo_total.csv")
+
+
+```
+
+
+
+
+# LMI Qualifications
+
+For California's NVBT program, we consider the following proxies for LMI qualifications:
+
+  * CARE Program
+  * FERA Program
+  * CalFresh Program
+  * SNAP
+
+We use SNAP and 80% AMI households as a proxy. The below map shows the geographical concentration of both LMI proxies across the state, with the utility boundary for the three main utilities overlaid. 
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+ca_tracts <- get_acs(
+  geography="tract", 
+  state="CA",
+  variables=c("Total_Pop" = "B01001_001","snap_hh" = "B22001_002","snap_pop" = "B19058_002"
+              
+              ),
+  year=2019, 
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(total_pop = estimate[variable=="Total_Pop"],
+            snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable=="snap_pop"])
+
+
+
+
+
+
+
+total_ca_tracts <- cbind(add_geo, ca_tracts)
+
+```
+
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+snap_pal <- colorNumeric(
+  palette=c("Oranges"),
+  domain=total_ca_tracts$snap_hh
+)
+
+ami_pal <- colorNumeric(
+  palette=c("Purples"),
+  domain=total_ca_tracts$AMI_80
+)
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  
+  # Utility Zones
+    addPolygons(data = iou_utils,
+              group = "Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup = paste("Utility Zone: ", iou_utils$Acronym, "<br>",
+                            "Utility Name: ", iou_utils$Utility)) %>%
+
+  # SNAP
+  
+  addPolygons(data=total_ca_tracts,
+              group="SNAP",
+             # stroke = TRUE,
+              color = ~snap_pal(total_ca_tracts$snap_hh),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", total_ca_tracts$geoid, "<br>",
+                          "SNAP HHs: ", total_ca_tracts$snap_hh)) %>%
+  addLegend(position="topleft",
+            pal=snap_pal,
+            group="SNAP",
+            values=total_ca_tracts$snap_hh,
+            title="SNAP HHs")  %>%
+  
+  # AMI
+  addPolygons(data=total_ca_tracts,
+              group="80% AMI",
+             # stroke = TRUE,
+              color = ~ami_pal(total_ca_tracts$AMI_80),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", total_ca_tracts$geoid, "<br>",
+                          "80% AMI: ", total_ca_tracts$AMI_80)) %>%
+  addLegend(position="bottomleft",
+            pal=ami_pal,
+            group="80% AMI",
+            values=total_ca_tracts$AMI_80,
+            title="80% AMI")  %>%
+  
+      addLayersControl(
+    overlayGroups=c( "SNAP", "Utility Zones", "80% AMI"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("80% AMI")
+
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+
+
+
+temp_table <- total_ca_tracts %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(iou_utils %>% select(Utility = Acronym)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(`80% AMI` = sum(AMI_80),
+            `100% AMI` = sum(AMI_100),
+            SNAP = sum(snap_hh),
+            `Total Pop` = sum(total_pop))%>%
+  adorn_totals("row")
+
+
+datatable(temp_table, caption = "California LMI Population by Utility") %>%
+    formatCurrency('80% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('100% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('SNAP',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('Total Pop',currency = "", interval = 3, digits = 0, mark = ",") 
+
+
+
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+temp_table %>%
+  filter(Utility=="Total") %>%
+  write_csv("final_data/ca_lmi_total.csv")
+
+
+```
+
+
+
+# LIFT Solar
+
+
+According to the LIFT Solar database, California has 3 community solar projects. These represent 24 mWh of capacity, potentially serving only 9,526 LMI customers. This represents less than 1% of households receiving SNAP benefits, thus qualified for California's NVBT program. 
+
+
+
+
+```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
+
+lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
+
+lift_df <- separate(lift_df, GeoCode, into = c("long", "lat"), sep = ",")
+
+lift_df <- st_as_sf(lift_df, coords = c("long", "lat"), crs = st_crs(get_tracts))
+
+
+
+temp_df <- add_geo %>%
+  filter(State_Name == "California") 
+
+temp_lift <- lift_df %>%
+  filter(State == "California")
+
+
+pal_potLMI <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Potential...LMI.Subscribers)
+
+pal_cap <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Project.Capacity.KW.AC)
+
+
+
+pal <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80)
+
+pal2 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80_Pct)
+
+pal3 <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = total_ca_tracts$snap_hh)
+
+library(tidyr)
+
+
+
+
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+    addPolygons(data = iou_utils,
+              group = "Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup = paste("Utility Zone: ", iou_utils$Acronym, "<br>",
+                            "Utility Name: ", iou_utils$Utility)) %>%
+
+  
+  # AMI
+  addPolygons(data=total_ca_tracts,
+              group="80% AMI",
+             # stroke = TRUE,
+              color = ~ami_pal(total_ca_tracts$AMI_80),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", total_ca_tracts$geoid, "<br>",
+                          "80% AMI: ", total_ca_tracts$AMI_80)) %>%
+  addLegend(position="bottomleft",
+            pal=ami_pal,
+            group="80% AMI",
+            values=total_ca_tracts$AMI_80,
+            title="80% AMI")  %>%
+  
+  # SNAP
+  
+  addPolygons(data=total_ca_tracts,
+              group="SNAP",
+             # stroke = TRUE,
+              color = ~snap_pal(total_ca_tracts$snap_hh),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", total_ca_tracts$geoid, "<br>",
+                          "SNAP HHs: ", total_ca_tracts$snap_hh)) %>%
+  addLegend(position="topleft",
+            pal=snap_pal,
+            group="SNAP",
+            values=total_ca_tracts$snap_hh,
+            title="SNAP HHs")  %>%
+  
+  # LIFT
+  addCircleMarkers(data = temp_lift,
+                   group="Potential LMI Subscribers",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(temp_lift$Potential...LMI.Subscribers), 
+                   color = ~pal_potLMI(Potential...LMI.Subscribers)) %>%
+  addLegend("bottomright",
+            group="Potential LMI Subscribers",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_potLMI,
+            values = temp_lift$Potential...LMI.Subscribers,
+            title="Potential LMI Subscribers") %>%
+
+    ## Project Capacity ## 
+  
+  addCircleMarkers(data = temp_lift,
+                   group="Project Capacity",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(temp_lift$Project.Capacity.KW.AC), 
+                   color = ~pal_cap(Project.Capacity.KW.AC)) %>%
+  addLegend("topleft",
+             group="Project Capacity",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_cap,
+            values = temp_lift$Project.Capacity.KW.AC,
+            title="Project Capacity") %>%
+
+
+  addLayersControl(
+    overlayGroups=c( "80% AMI", "Utility Zones", "SNAP","Potential LMI Subscribers", "Project Capacity"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+map %>%
+ hideGroup("SNAP") %>% hideGroup("80% AMI") %>% hideGroup("Project Capacity")
+
+```
+
+
+
+
+

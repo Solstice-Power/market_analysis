@@ -1,0 +1,289 @@
+---
+title: "Minnesota"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+
+
+```{r setup, include=FALSE}
+
+source('helper_functions.R')
+load_packages()
+
+
+
+```
+
+
+# Overivew
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state="MN",
+  variables=c("Median Income" = "S1901_C01_012E"),
+  year=2019, 
+  geometry=TRUE) %>%
+  mutate(MedInc = estimate) %>%
+  select(geoid=GEOID, geometry)
+
+
+temp_util <- st_read("utility_zones/MN/Service_Areas.shp") %>%
+  mutate(new_name = case_when(
+    utility == "XCEL" ~ "XCEL", 
+    grepl("Minnesota Power", utility, ignore.case = TRUE) ~ "Minnesota Power",
+    grepl("Otter", utility, ignore.case = TRUE) ~ "Otter Tail",
+    grepl("NW WI", utility, ignore.case = TRUE) ~ "NW WI"
+    
+    
+  ))
+```
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    state == 27 ~ "Minnesota",
+    TRUE ~ "Other"
+  )) %>%
+  filter(State_Name == "Minnesota") 
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+
+temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
+  st_make_valid()
+```
+
+
+
+## Utility Map
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.5,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=temp_util$new_name,
+            title="Solstice MN Utilities")
+```
+
+# Geoqualification
+
+
+
+# LMI Qualificaiton
+
+
+
+
+
+# LIFT Solar
+
+
+There are 7 projects in the LIFT solar database in Minnesota.  
+
+
+```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
+
+lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
+
+lift_df <- separate(lift_df, GeoCode, into = c("long", "lat"), sep = ",")
+
+lift_df <- st_as_sf(lift_df, coords = c("long", "lat"), crs = st_crs(get_tracts))
+
+
+
+temp_df <- add_geo %>%
+  filter(State_Name == "Minnesota") 
+
+temp_lift <- lift_df %>%
+  filter(State == "Minnesota")
+
+
+pal_potLMI <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Potential...LMI.Subscribers)
+
+pal_cap <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_lift$Project.Capacity.KW.AC)
+
+
+
+pal <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80)
+
+pal2 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = temp_df$AMI_80_Pct)
+
+# pal3 <- colorNumeric(
+#   palette = "viridis",
+#  # reverse=TRUE,
+#   domain = total_ca_tracts$snap_hh)
+
+library(tidyr)
+
+
+transformed_radius <- sqrt(temp_lift$Project.Capacity.KW.AC)
+transform_pot <- sqrt(temp_lift$Potential...LMI.Subscribers)
+
+
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$comp_short)
+  ) %>%
+  
+  addPolygons(
+    data = temp_df,
+    group="80% AMI",  # This should be consistent with the group name in the addLegend function
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal(AMI_80),
+    popup=paste("Tract: ", temp_df$geoid, "<br>", 
+                "HHs at 80% AMI: ", temp_df$AMI_80)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="80% AMI",  # This should be consistent with the group name in the addPolygons function
+            pal = pal,
+            values = temp_df$AMI_80,
+            title="Number of HHs at 80% AMI"
+  ) %>%
+  
+  # addPolygons(
+  #   data=nm_df,
+  #   group="80% AMI Percent",  # This should be consistent with the group name in the addLegend function
+  #   stroke=FALSE,
+  #   smoothFactor=0.2,
+  #   fillOpacity=0.7,
+  #   color=~pal2(AMI_80_Pct),
+  #   popup=paste("Tract: ", nm_df$geoid, "<br>", 
+  #               "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)
+  # ) %>%
+  # 
+  # addLegend("bottomleft",
+  #           group="80% AMI Percent",  # This should be consistent with the group name in the addPolygons function
+  #           pal = pal2,
+  #           values = nm_df$AMI_80_Pct,
+  #           title="Percent of HHs at 80% AMI"
+  # ) %>%
+  
+  # addPolygons(
+  #   data=total_ca_tracts,
+  #   group="SNAP",
+  #   stroke=FALSE,
+  #   smoothFactor=0.2,
+  #   fillOpacity=0.7,
+  #   color=~pal3(snap_hh),
+  #   popup=paste("Tract: ", total_ca_tracts$GEOID, "<br>",
+  #               "Number of HHs Receiving SNAP: ", total_ca_tracts$snap_hh)
+  # ) %>%
+  # 
+  # addLegend("bottomleft",
+  #           group="SNAP",
+  #           pal = pal3,
+  #           values = total_ca_tracts$snap_hh,
+  #           title="Number of HHs Receiving SNAP:"
+  # ) %>%
+  
+    addCircleMarkers(data = temp_lift,
+                   group="Potential LMI Subscribers",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                    radius = sqrt(temp_lift$Potential...LMI.Subscribers),
+               #     radius = temp_lift$Potential...LMI.Subscribers/100, 
+                   color = ~pal_potLMI(Potential...LMI.Subscribers)) %>%
+  addLegend("bottomright",
+            group="Potential LMI Subscribers",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_potLMI,
+            values = temp_lift$Potential...LMI.Subscribers,
+            title="Potential LMI Subscribers") %>%
+
+    ## Project Capacity ## 
+  
+  addCircleMarkers(data = temp_lift,
+                   group="Project Capacity",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = transformed_radius,  # Use the transformed values
+                   color = ~pal_cap(Project.Capacity.KW.AC)) %>%
+  addLegend("topleft",
+            group="Project Capacity",
+            pal = pal_cap,
+            values = temp_lift$Project.Capacity.KW.AC,  # Original values for the legend
+            title="Project Capacity") %>%
+
+  addLayersControl(
+    overlayGroups=c( "80% AMI", "Utility Zones", "Potential LMI Subscribers", "Project Capacity"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+map %>%
+ hideGroup("SNAP") %>% hideGroup("80% AMI") %>% hideGroup("Project Capacity") %>% hideGroup("Utility Zones")
+
+```
+
+
+
+
+
+
+
+
+

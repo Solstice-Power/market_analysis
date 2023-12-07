@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?><metadata>
+    <idinfo>
+        <citation>
+            <citeinfo>
+                <origin/>
+                <origin/>
+                <title>BPU's New Jersey Electric Utilities Territory Map, NJDEP Edition 2003 (Util_admin_electric_bnd) (Web Mercator ArcGIS Online Service)</title>
+                <geoform>vector digital data</geoform>
+                <pubinfo>
+                    <publish>New Jersey Board of Public Utilities</publish>
+                </pubinfo>
+                <onlink>https://www.nj.gov/dep/gis/digidownload/zips/OpenData/Util_admin_electric_bnd.zip</onlink>
+            </citeinfo>
+        </citation>
+        <descript>
+            <abstract>This data provides graphic representation of electric company territories of New Jersey. Data was compiled using Electric Utility paper maps, all greater than 1:500,000. It is anticipated that electric company territorial boundaries will remain stable.</abstract>
+            <purpose>To provide digital representation of electric company territories in NJ for GIS analysis.</purpose>
+        </descript>
+        <timeperd>
+            <timeinfo>
+                <sngdate>
+                    <caldate>20030101</caldate>
+                </sngdate>
+            </timeinfo>
+            <current>Ground condition</current>
+        </timeperd>
+        <status>
+            <progress>Complete</progress>
+            <update>None planned</update>
+        </status>
+        <spdom>
+            <bounding>
+                <westbc>-75.587289</westbc>
+                <eastbc>-73.890663</eastbc>
+                <northbc>41.357242</northbc>
+                <southbc>38.924959</southbc>
+            </bounding>
+        </spdom>
+        <keywords>
+            <theme>
+                <themekt>None</themekt>
+                <themekey>utilities</themekey>
+                <themekey>territory</themekey>
+                <themekey>Electric Companies</themekey>
+                <themekey>service</themekey>
+                <themekey>boundary</themekey>
+            </theme>
+            <theme>
+                <themekt>User</themekt>
+                <themekey>Util_admin_electric_bnd</themekey>
+                <themekey>electric_co</themekey>
+            </theme>
+            <theme>
+                <themekt>ISO 19115 Topic Category</themekt>
+                <themekey>boundaries</themekey>
+            </theme>
+            <theme>
+                <themekt>ISO 19115 Topic Categories</themekt>
+                <themekey>boundaries</themekey>
+                <themekey>utilitiesCommunication</themekey>
+            </theme>
+            <place>
+                <placekt>None</placekt>
+                <placekey>New Jersey</placekey>
+            </place>
+        </keywords>
+        <accconst>None</accconst>
+        <useconst>New Jersey Department of Environmental Protection (NJDEP) Data Distribution Agreement. The data provided herein are distributed subject to the following conditions and restrictions: NJDEP assumes no responsibility to maintain them in any manner or form and disclaims any duty or obligation to either maintain availability of or to update the data. Terms of Agreement 1. All data is provided, as is, without any representation or warranty of any kind, implied, expressed or statutory including, but not limited to, the warranties of non-infringement of third party rights, title, merchantability or fitness for a particular use, freedom from computer virus nor are any such warranties to be implied with respect to the digital data layers furnished hereunder. User is responsible for understanding the accuracy limitations of all digital data layers provided herein, as documented in the accompanying cross-reference files (see SUPPLEMENTAL INFORMATION). Any reproduction or manipulation of the above data must ensure that the coordinate reference system remains intact. 2. Digital data received from the NJDEP may not be reproduced or redistributed without all the metadata provided. 3. Any maps, publications, reports, or other documents produced as a result of this project that utilize this digital data will credit the NJDEP's Geographic Information System (GIS) as the source of the data with the following credit/disclaimer: 'This (map/publication/report) was developed using New Jersey Department of Environmental Protection Geographic Information System digital data, but this secondary product has not been verified by NJDEP and is not state-authorized or endorsed.' 4. NJDEP makes no warranty that digital data are free of Copyright or Trademark claims or other restrictions or limitations on free use or display. Making a copy of this data may be subject to the copyright of trademark laws.</useconst>
+        <native>ESRI ArcCatalog 9.3.1.3500</native>
+    </idinfo>
+    <dataqual>
+        <attracc>
+            <attraccr>Unknown</attraccr>
+        </attracc>
+        <logic>Data was compiled using Electric Utility paper maps, all greater than 1:500,000. Logical consistency (topological accuracy) based on county/municipal boundary data from 2003. No other tests known.</logic>
+        <complete>Unknown</complete>
+        <posacc>
+            <horizpa>
+                <horizpar>Data was compiled using Electric Utility paper maps, all greater than 1:500,000.</horizpar>
+            </horizpa>
+        </posacc>
+        <lineage>
+            <procstep>
+                <procdesc>June 1998 Digitized either through heads-up or tablet. Production Staff: John Payner, Nestor Ortiz</procdesc>
+                <procdate>19980601</procdate>
+            </procstep>
+            <procstep>
+                <procdesc>January 2002, Territories were updated using a PSEG map from July 2000 and New Jersey Department of Environmental Protection municipal, and county boundaries. ArcView 3.2 was used to provide exact replication of New Jersey Department of Environmental Protection municipal boundaries for the "Madison Municipality" polygon. Other polygons were updated visually and manually using ArcView's edit option. All edits were carried out between December 2001 and January 2002. Production Staff: Joel Alvarez (edits), Rob Lau (QC).</procdesc>
+                <procdate>20020101</procdate>
+            </procstep>
+            <procstep>
+                <procdesc>December 2002, Clipped with ESRI's Detailed Counties shapefiles to show shorelines.</procdesc>
+                <procdate>20021201</procdate>
+            </procstep>
+            <procstep>
+                <procdesc>Feb. 2003, renamed attribute "name2" to "label". GPU Energy changed to JCP&amp;L</procdesc>
+                <procdate>20030201</procdate>
+            </procstep>
+        </lineage>
+    </dataqual>
+    <spdoinfo>
+        <direct>Vector</direct>
+        <ptvctinf>
+            <sdtsterm>
+                <sdtstype>GT-polygon composed of chains</sdtstype>
+                <ptvctcnt>0</ptvctcnt>
+            </sdtsterm>
+        </ptvctinf>
+    </spdoinfo>
+    <eainfo>
+        <detailed>
+            <enttyp>
+                <enttypl>Util_admin_electric_bnd</enttypl>
+                <enttypd>electric company territories in NJ</enttypd>
+                <enttypds>New Jersey Board of Public Utilities</enttypds>
+            </enttyp>
+            <attr>
+                <attrlabl>OBJECTID</attrlabl>
+                <attrdef>Internal feature number.</attrdef>
+                <attrdefs>ESRI</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>Sequential unique whole numbers that are automatically generated.</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>NAME</attrlabl>
+                <attrdef>Name of territory</attrdef>
+                <attrdefs>New Jersey Board of Public Utilities</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>unique entry</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>DISTRICT</attrlabl>
+                <attrdef>District Name</attrdef>
+                <attrdefs>New Jersey Board of Public Utilities</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>unique entry</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>LABEL</attrlabl>
+                <attrdef>Name abbreviation or alternate name</attrdef>
+                <attrdefs>New Jersey Board of Public Utilities</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>unique entry</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>TYPE</attrlabl>
+                <attrdef>Type of electric utility</attrdef>
+                <attrdefs>New Jersey Board of Public Utilities</attrdefs>
+                <attrdomv>
+                    					
+                    <edom>
+                        						
+                        <edomv>Cooperative</edomv>
+                        						
+                        <edomvd>Cooperative Utility</edomvd>
+                        						
+                        <edomvds>New Jersey Board of Public Utilities</edomvds>
+                        					
+                    </edom>
+                    				
+                </attrdomv>
+                <attrdomv>
+                    					
+                    <edom>
+                        						
+                        <edomv>LDC</edomv>
+                        						
+                        <edomvd>Local Distribution Company (Investor owned distribution company, such as PSE&amp;G, JCP&amp;L, Rockland Electric)</edomvd>
+                        						
+                        <edomvds>New Jersey Board of Public Utilities</edomvds>
+                        					
+                    </edom>
+                    				
+                </attrdomv>
+                <attrdomv>
+                    					
+                    <edom>
+                        						
+                        <edomv>MUA</edomv>
+                        						
+                        <edomvd>Municipal Authorities (Electric utility run by municipalities)</edomvd>
+                        						
+                        <edomvds>New Jersey Board of Public Utilities</edomvds>
+                        					
+                    </edom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>PARENT</attrlabl>
+                <attrdef>Parent Company</attrdef>
+                <attrdefs>New Jersey Board of Public Utilities</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>unique entry</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>OLD_NAME</attrlabl>
+                <attrdef>Old Name</attrdef>
+                <attrdefs>New Jersey Board of Public Utilities</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>unique entry</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>Shape_Leng</attrlabl>
+                <attrdef>Shape length</attrdef>
+                <attrdefs>ESRI</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>unique entry</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>SHAPE</attrlabl>
+                <attrdef>Feature geometry.</attrdef>
+                <attrdefs>ESRI</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>Coordinates defining the features.</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>SHAPE.AREA</attrlabl>
+                <attrdef>shape area</attrdef>
+                <attrdefs>ESRI</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>unique entry</udom>
+                    				
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>SHAPE.LEN</attrlabl>
+                <attrdef>shape length</attrdef>
+                <attrdefs>ESRI</attrdefs>
+                <attrdomv>
+                    					
+                    <udom>unique entry</udom>
+                    				
+                </attrdomv>
+            </attr>
+        </detailed>
+    </eainfo>
+    <distinfo>
+        <resdesc>Downloadable Data</resdesc>
+        <distliab>New Jersey Board of Public Utilities makes no representations of any kind, including, but not limited to, the warranties of merchantability or fitness for a particular use, nor are any such warranties to be implied with respect to the digital data layers furnished hereunder. Data is distributed "as is". New Jersey Board of Public Utilities assumes no responsibility to maintain them in any manner or form.</distliab>
+        <stdorder>
+            <digform>
+                <digtinfo>
+                    <formname>AVSHP</formname>
+                    <formvern>3x</formvern>
+                    <filedec>none</filedec>
+                    <transize>0.466</transize>
+                </digtinfo>
+                <digtopt>
+                    <onlinopt/>
+                </digtopt>
+            </digform>
+            <fees>none</fees>
+            <ordering>none</ordering>
+        </stdorder>
+    </distinfo>
+    <metainfo>
+        <metd>20120329</metd>
+        <metc>
+            <cntinfo>
+                <cntorgp>
+                    <cntorg>New Jersey Board of Public Utilities</cntorg>
+                    <cntper>Robert Lau</cntper>
+                </cntorgp>
+                <cntaddr>
+                    <addrtype>mailing and physical</addrtype>
+                    <address>Post Office Box 350</address>
+                    <address>44 South Clinton Avenue (9th Floor)</address>
+                    <city>Trenton</city>
+                    <state>NJ</state>
+                    <postal>08625-0350</postal>
+                </cntaddr>
+                <cntvoice>609-777-3300.</cntvoice>
+                <cntemail>Robert.Lau@bpu.state.nj.us</cntemail>
+            </cntinfo>
+        </metc>
+        <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+        <metstdv>FGDC-STD-001-1998</metstdv>
+        <mettc>local time</mettc>
+    </metainfo>
+</metadata>
