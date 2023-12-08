@@ -47,3 +47,12 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+*.csv
+*.shp
+*.dbf
+*.geojson
+*.prj
+*.shx
+
+*.zip

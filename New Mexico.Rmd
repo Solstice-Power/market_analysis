@@ -235,14 +235,14 @@ nm_tracts <- get_acs(
 
 total_nm_tracts <- cbind(nm_geo, nm_tracts)
 
-nm_tracts %>%
-  st_drop_geometry() %>%
-  write_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_tract_data_no_geo.csv")
-
-nm_tracts %>%
-  st_write("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_tract_data.geojson")
-  
-  
+# nm_tracts %>%
+#   st_drop_geometry() %>%
+#   write_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_tract_data_no_geo.csv")
+# 
+# nm_tracts %>%
+#   st_write("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_tract_data.geojson")
+#   
+#   
 
 nm_block_groups <- get_acs(
   geography = "block group",

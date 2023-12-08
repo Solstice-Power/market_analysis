@@ -1,7 +1,7 @@
-name: "lmi_by_utility"
+name: "market_analysis"
 output_dir: "docs"
 navbar:
-  title: "LMI by Utility"
+  title: "Solstice Market Analysis"
   right:
     - text: "Home"
       href: index.html
