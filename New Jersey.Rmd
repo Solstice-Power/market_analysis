@@ -36,7 +36,7 @@ nj_geo_qual <- st_read("data/NJ/hud_80pct_80ami/Low_to_Moderate_Income_Populatio
          )
          )
 
-toms_river_geo_zone <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/New Jersey/Tom_River_Qualification_File.geojson")
+toms_river_geo_zone <- st_read("data/NJ/Tom_River_Qualification_File.geojson")
   
 ```
 
