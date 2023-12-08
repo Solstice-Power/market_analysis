@@ -23,7 +23,7 @@ The New Mexico project does not offer geoqualificaiton, however does a number of
 
 #state_list <- c("IL", "MA", "MN", "NJ", "NM", "NY",  "CA")
 
-state_list <- c("IL", "NJ", "NY")
+state_list <- c("NM")
 
 hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") 
 
@@ -103,7 +103,7 @@ add_geo <- merge(chas_df, get_tracts)
 add_geo <- st_as_sf(add_geo)
 
 nm_geo <- add_geo %>%
-  filter(State_Name %in% c("Illinois", "New York", "New Jersey"))
+  filter(State_Name %in% c("New Mexico"))
 
 temp_util <- st_transform(temp_util, st_crs(nm_geo)) %>%
   st_make_valid()
@@ -244,215 +244,215 @@ total_nm_tracts <- cbind(nm_geo, nm_tracts)
 #   
 #   
 
-nm_block_groups <- get_acs(
-  geography = "block group",
-  state = state_list, 
-  variables = c(
-                # Education Variables
-                'B15003_002','B15003_003','B15003_004','B15003_005','B15003_006','B15003_007',
-                'B15003_008','B15003_009','B15003_010','B15003_011','B15003_012','B15003_013',
-                'B15003_014','B15003_015','B15003_016','B15003_017','B15003_018','B15003_019',
-                'B15003_020','B15003_021','B15003_022','B15003_023','B15003_024','B15003_025',
-                
-                # unemployed
-                'B23025_005',
-                
-                # block group pop
-                
-                'B01001_001'
-                
-                ),
-  geometry =TRUE
-) %>%
-  group_by(GEOID) %>%
-  summarize(education_below_hs =
-                          estimate[variable=="B15003_002"] + 
-                          estimate[variable=="B15003_003"] +
-                          estimate[variable=="B15003_004"] +
-                          estimate[variable=="B15003_005"] +
-                          estimate[variable=="B15003_006"] +
-                          estimate[variable=="B15003_007"] +
-                          estimate[variable=="B15003_008"] +
-                          estimate[variable=="B15003_009"] +
-                          estimate[variable=="B15003_010"] +
-                          estimate[variable=="B15003_011"] +
-                          estimate[variable=="B15003_012"] + 
-                          estimate[variable=="B15003_013"] +
-                          estimate[variable=="B15003_014"] +
-                          estimate[variable=="B15003_015"] +
-                          estimate[variable=="B15003_016"], 
-            
-            education_hs_some_college = 
-                          estimate[variable=="B15003_017"] + 
-                          estimate[variable=="B15003_018"] +
-                          estimate[variable=="B15003_019"] +
-                          estimate[variable=="B15003_020"],
-            
-            education_college =
-                      estimate[variable=="B15003_021"] + 
-                      estimate[variable=="B15003_022"],
-            
-            education_advanced =
-                      estimate[variable=="B15003_023"] + 
-                      estimate[variable=="B15003_024"] +
-                      estimate[variable=="B15003_025"],
-            
-            unemployed_pop = estimate[variable=="B23025_005"],
-            
-            block_group_pop = estimate[variable=="B01001_001"]
-            
-            )
+# nm_block_groups <- get_acs(
+#   geography = "block group",
+#   state = state_list, 
+#   variables = c(
+#                 # Education Variables
+#                 'B15003_002','B15003_003','B15003_004','B15003_005','B15003_006','B15003_007',
+#                 'B15003_008','B15003_009','B15003_010','B15003_011','B15003_012','B15003_013',
+#                 'B15003_014','B15003_015','B15003_016','B15003_017','B15003_018','B15003_019',
+#                 'B15003_020','B15003_021','B15003_022','B15003_023','B15003_024','B15003_025',
+#                 
+#                 # unemployed
+#                 'B23025_005',
+#                 
+#                 # block group pop
+#                 
+#                 'B01001_001'
+#                 
+#                 ),
+#   geometry =TRUE
+# ) %>%
+#   group_by(GEOID) %>%
+#   summarize(education_below_hs =
+#                           estimate[variable=="B15003_002"] + 
+#                           estimate[variable=="B15003_003"] +
+#                           estimate[variable=="B15003_004"] +
+#                           estimate[variable=="B15003_005"] +
+#                           estimate[variable=="B15003_006"] +
+#                           estimate[variable=="B15003_007"] +
+#                           estimate[variable=="B15003_008"] +
+#                           estimate[variable=="B15003_009"] +
+#                           estimate[variable=="B15003_010"] +
+#                           estimate[variable=="B15003_011"] +
+#                           estimate[variable=="B15003_012"] + 
+#                           estimate[variable=="B15003_013"] +
+#                           estimate[variable=="B15003_014"] +
+#                           estimate[variable=="B15003_015"] +
+#                           estimate[variable=="B15003_016"], 
+#             
+#             education_hs_some_college = 
+#                           estimate[variable=="B15003_017"] + 
+#                           estimate[variable=="B15003_018"] +
+#                           estimate[variable=="B15003_019"] +
+#                           estimate[variable=="B15003_020"],
+#             
+#             education_college =
+#                       estimate[variable=="B15003_021"] + 
+#                       estimate[variable=="B15003_022"],
+#             
+#             education_advanced =
+#                       estimate[variable=="B15003_023"] + 
+#                       estimate[variable=="B15003_024"] +
+#                       estimate[variable=="B15003_025"],
+#             
+#             unemployed_pop = estimate[variable=="B23025_005"],
+#             
+#             block_group_pop = estimate[variable=="B01001_001"]
+#             
+#             )
 
 
-nm_block_groups %>%
-  st_drop_geometry() %>%
-  write_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_group_data_no_geo.csv")
+# nm_block_groups %>%
+#   st_drop_geometry() %>%
+#   write_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_group_data_no_geo.csv")
+# 
+# nm_block_groups %>%
+#   st_write("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_group_data.geojson", append=FALSE)
+# 
+# nm_block_groups <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_group_data.geojson")
+# ### Block Groups
 
-nm_block_groups %>%
-  st_write("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_group_data.geojson", append=FALSE)
-
-
-### Block Groups
-
-
-blocks_2020_pop <- get_decennial(
- geography="block",
- variables= "P1_001N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(block_pop=value) 
-
-
-blocks_2020_gq_pop_prison <- get_decennial(
- geography="block",
- variables= "P5_003N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(gq_pop_prison=value) 
-
-
-blocks_2020_gq_pop_juvenille <- get_decennial(
- geography="block",
- variables= "P5_004N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(gq_pop_juvenille=value) 
-
-
-blocks_2020_vacant_hhs <- get_decennial(
- geography="block",
- variables= "H1_003N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(vacant_hhs=value) 
+# 
+# blocks_2020_pop <- get_decennial(
+#  geography="block",
+#  variables= "P1_001N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(block_pop=value) 
+# 
+# 
+# blocks_2020_gq_pop_prison <- get_decennial(
+#  geography="block",
+#  variables= "P5_003N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(gq_pop_prison=value) 
+# 
+# 
+# blocks_2020_gq_pop_juvenille <- get_decennial(
+#  geography="block",
+#  variables= "P5_004N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(gq_pop_juvenille=value) 
+# 
+# 
+# blocks_2020_vacant_hhs <- get_decennial(
+#  geography="block",
+#  variables= "H1_003N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(vacant_hhs=value) 
 
 # Race
 
+# 
+# blocks_2020_white <- get_decennial(
+#  geography="block",
+#  variables= "P1_003N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(race_white=value) 
+# 
+# 
+# blocks_2020_black <- get_decennial(
+#  geography="block",
+#  variables= "P1_004N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(race_black=value) 
+# 
+# 
+# blocks_2020_american <- get_decennial(
+#  geography="block",
+#  variables= "P1_005N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(race_american_indian=value) 
+# 
+# 
+# blocks_2020_asian <- get_decennial(
+#  geography="block",
+#  variables= "P1_006N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(race_asian=value) 
+# 
+# 
+# blocks_2020_native_pacific <- get_decennial(
+#  geography="block",
+#  variables= "P1_007N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+# #   mutate(race_native_pacific=value) 
+# 
+# blocks_2020_other <- get_decennial(
+#  geography="block",
+#  variables= "P1_008N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(race_other=value) 
+# 
+# blocks_2020_two <- get_decennial(
+#  geography="block",
+#  variables= "P1_009N", 
+#  state = state_list,
+#  year=2020,
+#  geometry=TRUE
+# )%>%
+#   mutate(race_two=value) 
+# 
+# 
+# 
+# 
+# nm_blocks <- cbind(blocks_2020_pop,blocks_2020_gq_pop_prison, blocks_2020_gq_pop_juvenille,
+#                    blocks_2020_vacant_hhs, blocks_2020_white, blocks_2020_black, blocks_2020_american,
+#                    blocks_2020_native_pacific, blocks_2020_asian, blocks_2020_other, blocks_2020_two) %>%
+#   select(GEOID, NAME,block_pop,gq_pop_prison, gq_pop_juvenille, vacant_hhs,
+#          race_white, race_black, race_american_indian, race_asian, race_native_pacific,
+#          race_other, race_two) 
+# 
+# rm(blocks_2020_american)
+# rm(blocks_2020_asian)
+# rm(blocks_2020_black)
+# rm(blocks_2020_gq_pop_juvenille)
+# rm(blocks_2020_gq_pop_prison)
+# rm(blocks_2020_native_pacific)
+# rm(blocks_2020_other)
+# rm(blocks_2020_two)
+# rm(blocks_2020_white)
+# rm(blocks_2020_vacant_hhs)
 
-blocks_2020_white <- get_decennial(
- geography="block",
- variables= "P1_003N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(race_white=value) 
 
-
-blocks_2020_black <- get_decennial(
- geography="block",
- variables= "P1_004N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(race_black=value) 
-
-
-blocks_2020_american <- get_decennial(
- geography="block",
- variables= "P1_005N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(race_american_indian=value) 
-
-
-blocks_2020_asian <- get_decennial(
- geography="block",
- variables= "P1_006N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(race_asian=value) 
-
-
-blocks_2020_native_pacific <- get_decennial(
- geography="block",
- variables= "P1_007N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(race_native_pacific=value) 
-
-blocks_2020_other <- get_decennial(
- geography="block",
- variables= "P1_008N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(race_other=value) 
-
-blocks_2020_two <- get_decennial(
- geography="block",
- variables= "P1_009N", 
- state = state_list,
- year=2020,
- geometry=TRUE
-)%>%
-  mutate(race_two=value) 
-
-
-
-
-nm_blocks <- cbind(blocks_2020_pop,blocks_2020_gq_pop_prison, blocks_2020_gq_pop_juvenille,
-                   blocks_2020_vacant_hhs, blocks_2020_white, blocks_2020_black, blocks_2020_american,
-                   blocks_2020_native_pacific, blocks_2020_asian, blocks_2020_other, blocks_2020_two) %>%
-  select(GEOID, NAME,block_pop,gq_pop_prison, gq_pop_juvenille, vacant_hhs,
-         race_white, race_black, race_american_indian, race_asian, race_native_pacific,
-         race_other, race_two) 
-
-rm(blocks_2020_american)
-rm(blocks_2020_asian)
-rm(blocks_2020_black)
-rm(blocks_2020_gq_pop_juvenille)
-rm(blocks_2020_gq_pop_prison)
-rm(blocks_2020_native_pacific)
-rm(blocks_2020_other)
-rm(blocks_2020_two)
-rm(blocks_2020_white)
-rm(blocks_2020_vacant_hhs)
-
-
-nm_blocks %>%
-  st_drop_geometry() %>%
-  write_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_data_no_geo.csv")
-
-nm_blocks %>%
-  st_write("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_data.geojson")
-
+# nm_blocks %>%
+#   st_drop_geometry() %>%
+#   write_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_data_no_geo.csv")
+# 
+# nm_blocks %>%
+#   st_write("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/census_block_data.geojson")
+# 
 
 ```
 
@@ -473,7 +473,7 @@ temp <- total_nm_tracts %>%
             `100% AMI` = sum(AMI_100),
             `Medicaid` = sum(medicaid_pop),
             `SNAP HH` = sum(snap_hh),
-            `Total Population` = sum(total_pop)) %>%
+            `Total Population` = sum(tract_pop)) %>%
   arrange(desc(`80% AMI`)) %>%
   adorn_totals("row")
 
@@ -642,7 +642,7 @@ map %>%
 
 To estimate the total number of New Mexicans residing in low income housing, we first require a list of eligible properties. We take each affordable rental property listed on the [MFA Housing New Mexico](https://housingnm.org/find-housing/rentals/affordable) website. After geocoding each point, we have several options for determining the population concentration around each point. A common technique in transportation modeling is applying an isocrhone, or a travel time map. In our case, we want to see how many eligible population of SNAP, Medicaid and 80% AMI households are within a 15 and 30 minute driving radius around each point. 
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 # nm_data <- read_excel("data/nm/nm_public_housing.xlsx")
 # 
 # 
@@ -685,7 +685,7 @@ nm_public_housing_isos_30 <- st_transform(nm_public_housing_isos_30, st_crs(nm_p
 
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 
 library(leaflet.extras)
 
@@ -737,7 +737,7 @@ map %>%
 
 
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 
 
 
@@ -814,7 +814,7 @@ temp_15
 
 
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 
 
 # Assuming 'snap' column is present in total_nm_tracts
@@ -890,7 +890,7 @@ temp <- rbind(temp_15, temp_30)
 
 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 
 datatable(temp, caption = "New Mexico Distance from Public Housing and Selected Characteristics")%>%
   formatCurrency('LMI',currency = "", interval = 3, mark = ",", digits = 0) %>%
