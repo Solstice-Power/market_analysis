@@ -27,17 +27,11 @@ library(reticulate)
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
-state_list <- c("IL", "MA", "MN", "NJ", "NM", "NY",  "CA")
+state_list <- c("NY")
 
 hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") 
 
-temp_util <- hifld_df %>%
-  filter(ID %in% c(15473, 10817, 5701)) %>%
-  mutate(new_name = case_when(
-    ID == 15473 ~ "Public Service Company",
-    ID == 10817 ~ "Xcel",
-    ID == 5701 ~ "El Paso Electric"
-  ))
+
 census_api_key('ba3d95cae3658f3145daf7f66119ed58a52aaca3')
 
 get_tracts <- get_acs(
@@ -51,7 +45,7 @@ get_tracts <- get_acs(
 
 get_zips <- get_acs(
   geography="zcta",
-  state = "NY",
+  state=state_list,
   variables=c("Median Income" = "S1901_C01_012E"),
   year=2018, 
   geometry=TRUE)
@@ -170,11 +164,6 @@ add_geo <- merge(chas_df, get_tracts)
 
 add_geo <- st_as_sf(add_geo)
 
-ny_geo <- add_geo %>%
-  filter(State_Name=="New York")
-
-temp_util <- st_transform(temp_util, st_crs(ny_geo)) %>%
-  st_make_valid()
 
 
 ```
@@ -214,7 +203,7 @@ lift_df <- st_as_sf(lift_df, coords = c("long", "lat"), crs = st_crs(ny_geo))
 
 ny_tracts <- get_acs(
   geography="tract", 
-  state="NY",
+  state=state_list,
   variables=c("Total_Pop" = "B01001_001","snap_hh" = "B22001_002","snap_pop" = "B19058_002"
               
               ),
@@ -942,6 +931,9 @@ datatable(
 ```
 
 
+
+
+
 # LMI Qualifications
 
 
@@ -1125,9 +1117,80 @@ temp_table %>%
 
 
 
-# LIFT Solar
+# Market Saturation 
+
+## NYSERDA
+
+Community solar projects in New YOrk are availalbe for viewing on the NYSERDA [website](https://www.nyserda.ny.gov/All-Programs/NY-Sun/Solar-for-Your-Home/Community-Solar/Community-Solar-Map). The projects are listed below, and color coordinated for utilities. 
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# cdg <- read_csv("docs/data/NY/CDG Map.csv")
+# 
+# 
+# 
+# library(ggmap)
+# 
+# # Assuming your 'nm_data' dataframe has columns 'Address' and 'Address 2'
+# # Create a new column to store the full address (combining Address and Address 2)
+# cdg$full_address <- paste(cdg$`Site Address`, "NY", sep = ", ")
+# 
+# cdg$full_address <- paste(cdg$full_address, cdg$`ZIP Code`)
+# 
+# # Use geocode() to get latitude and longitude for each address
+# geocoded_data <- geocode(cdg$full_address)
+# 
+# # Add latitude and longitude columns to the original dataframe
+# cdg$Latitude <- geocoded_data$lat
+# cdg$Longitude <- geocoded_data$lon
+# 
+# 
+# cdg$Latitude[cdg$`Site Address`=="1321 route 5&20, Silver Creek"] <- 42.54431354295006
+# cdg$Longitude[cdg$`Site Address`=="1321 route 5&20, Silver Creek"] <- -79.1670004978548
+# 
+# 
+# cdg <- st_as_sf(cdg, coords = c("Longitude", "Latitude"), crs = st_crs(ny_tracts))
+
+# st_write(cdg, "ny_cdg_solar_farms.geojson")
 
 
+cdg <- st_read("data/NY/ny_cdg_solar_farms.geojson")
+
+```
+
+```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
+
+pal3 <- colorFactor(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = cdg$Electric.Utility.Company)
+
+cdg <- st_as_sf(cdg)
+
+
+
+cdg <-  st_transform(cdg, st_crs(ny_tracts)) %>%
+  st_make_valid()
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(data=cdg,
+              stroke=FALSE,
+             # smoothFactor=0.2,
+              fillOpacity=0.7,
+              color=~pal3(Electric.Utility.Company),
+              popup=paste("Utility Zone: ", cdg$Electric.Utility.Company, "<br>",
+                          "Provider: ", cdg$Provider.Name)
+) %>%
+  addLegend("bottomright",
+            pal=pal3,
+            values = cdg$Electric.Utility.Company)
+  
+
+```
+
+
+
+## LIFT
 
 Groundswell manages the LIFT solar dataset of over 450 LMI community solar projects across the country. Project capacity (KW AC) and number of potential LMI customers per project is shown from this dataset. Note, there are no LIFT projects in New Mexico. 
 
