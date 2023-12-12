@@ -200,10 +200,39 @@ pnm_zone <- temp_util %>%
 xnm_zone <- temp_util %>%
   filter(ID == 10817)
 
+
+
 el_paso_zips_df <- utility_to_zip(get_zips,el_paso_zone )
+
+el_paso_zips_df$Utility_Tagged <- "El Paso Eletric"
+
 pnm_zips_df <- utility_to_zip(get_zips,pnm_zone )
+pnm_zips_df$Utility_Tagged <- "Public Service Company"
 
 xnm_zips_df <- utility_to_zip(get_zips,xnm_zone )
+xnm_zips_df$Utility_Tagged <- "Xcel"
+
+
+
+all_zips <- rbind(el_paso_zips_df, pnm_zips_df,xnm_zips_df) 
+
+
+get_zips <- get_zips %>%
+  mutate(
+    el_paso_coverage_tag = case_when(
+     geoid_int %in% el_paso_zips_df$geoid_int ~ TRUE,
+      TRUE ~ FALSE
+    ),
+      pnm_tag_coverage_tag = case_when(
+     geoid_int %in% pnm_zips_df$geoid_int ~ TRUE,
+      TRUE ~ FALSE
+    ),
+      xnm_tag_coverage_tag = case_when(
+     geoid_int %in% xnm_zips_df$geoid_int ~ TRUE,
+      TRUE ~ FALSE
+    )
+    )
+
 
 ```
 
@@ -276,12 +305,15 @@ leaflet() %>%
 
 ```
   
+  
+The table below shows all the zip codes in New Mexico that are covered by at least 5% of any of the three utilities. Note, a few zip codes may have multiple utilities covering it. 
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-temp_zips <- get_zips %>%
+temp_zips <- all_zips %>%
   st_drop_geometry() %>%
-  select(Zip = geoid, `El Paso Electric` = el_paso_tag,
-         Xcel = xnm_tag, `Public Service Company` = pnm_tag)
+  mutate(coverage = percent(coverage)) %>%
+  select(Zip = geoid,  Utility_Tagged, coverage)
 
 datatable(
   temp_zips,
