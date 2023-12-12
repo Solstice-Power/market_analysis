@@ -172,6 +172,7 @@ add_geo <- st_as_sf(add_geo)
 
 
 
+
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
 #  * NYSERDA [Supported Solar Projects](https://www.nyserda.ny.gov/All-Programs/NY-Sun/Solar-Data-Maps/NYSERDA-Supported-Solar-Projects)

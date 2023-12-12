@@ -34,6 +34,8 @@ temp_util <- hifld_df %>%
     ID == 10817 ~ "Xcel",
     ID == 5701 ~ "El Paso Electric"
   ))
+
+
 census_api_key('ba3d95cae3658f3145daf7f66119ed58a52aaca3')
 
 get_tracts <- get_acs(
@@ -53,6 +55,35 @@ get_zips <- get_acs(
   geometry=TRUE) %>%
   mutate(MedInc = estimate) %>%
   select(geoid=GEOID, geometry)
+
+
+
+
+el_paso_zips <- c(88021,88012,88011,88007,88006,88005,88003,87937,88013,88004,88002,88001)
+             
+xnm_zips <- c(88201,88130,88253,88244,88221,88252,88240,88241,88230,88101,88102,88220,88211,88135,88202,88203,88123,88256,88401,88242,88232,88231,88103,88210)
+
+pnm_zips <- c(87507,87031,87002,87504,87508,87592,87594,88345,88045,87144,87123,87048,87114,87121,87122,87111,87124,88062,88036,87107,87113,87503,87174,87006,87502,87505,87506,87509,87540,87745,88311,88022,88030,88031,88023,88055,88009,88310,87031,87501,87701,88355,88061,88053,88415)
+
+
+get_zips <- get_zips %>%
+  mutate(geoid_int = as.integer(geoid)) %>%
+  mutate(
+    el_paso_tag = case_when(
+     geoid_int %in% el_paso_zips ~ TRUE,
+      TRUE ~ FALSE
+    ),
+      xnm_tag = case_when(
+     geoid_int %in% xnm_zips ~ TRUE,
+      TRUE ~ FALSE
+    ),
+      pnm_tag = case_when(
+     geoid_int %in% pnm_zips ~ TRUE,
+      TRUE ~ FALSE
+    )
+    )
+
+
 
 
 ```
@@ -109,6 +140,166 @@ temp_util <- st_transform(temp_util, st_crs(nm_geo)) %>%
   st_make_valid()
 ```
 
+
+## Utility Zones and ZIP Codes
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+utility_to_zip <- function(get_zips, utility_zone) {
+  
+ # string_name = utility_zone
+  temp_zone <- utility_zone 
+  
+    # Transform only if CRS does not match
+  if (!st_crs(get_zips) == st_crs(temp_zone)) {
+    temp_zone <- st_transform(temp_zone, st_crs(get_zips)) %>%
+      st_make_valid()
+  }
+
+  # Assuming st_area has been calculated for temp_util in the global environment
+  temp_zone$area <- st_area(temp_zone)
+
+  # Compute intersection summary only if it's not already done
+  if (!"area" %in% names(get_zips)) {
+    get_zips$area <- st_area(get_zips)
+  }
+  
+  intersection_summary <- st_intersection(get_zips, temp_zone) %>%
+    mutate(intersection_area = st_area(geometry)) %>%
+    st_drop_geometry() %>%
+    group_by(geoid) %>%
+    summarize(intersection_area = sum(intersection_area))
+  
+  get_zips_coverage <- get_zips %>%
+    left_join(intersection_summary, by = "geoid") %>%
+    mutate(coverage = ifelse(is.na(intersection_area), 0, intersection_area / area))
+  
+  utility_zips <- get_zips_coverage %>%
+    filter(coverage >= 0.05) # captures zips with 5% of area covered by Utility Zone
+
+# 
+#   utility_zips$Utility <- "ny_zone_e"
+#   utility_name <- "ny_zone_e"
+  # Save to CSV
+  # filename <- paste0(utility_name, "_Zips.csv")
+  # utility_zips %>%
+  #  # st_drop_geometry() %>%
+  #   write.csv(filename)
+  # 
+  return(utility_zips)
+}
+
+el_paso_zone <- temp_util %>%
+  filter(ID == 5701)
+
+pnm_zone <- temp_util %>%
+  filter(ID == 15473)
+
+xnm_zone <- temp_util %>%
+  filter(ID == 10817)
+
+el_paso_zips_df <- utility_to_zip(get_zips,el_paso_zone )
+pnm_zips_df <- utility_to_zip(get_zips,pnm_zone )
+
+xnm_zips_df <- utility_to_zip(get_zips,xnm_zone )
+
+```
+
+
+
+
+Solstice operates in the following three utility zones in New Mexico:
+
+  * Public Service Company of New Mexico
+  * Excel
+  * El Paso Electric
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+pal_2 <- colorFactor(
+  palette = c( NA, "Red"),
+  domain = get_zips$el_paso_tag
+)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.5,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addPolygons(data=get_zips,
+              group="ZIPs",
+              weight = 1,
+              fillOpacity = 0,
+              color="black",
+             # color = ~pal_2(get_zips$el_paso_tag),
+              dashArray = "3,3",
+              popup=paste("ZIP Code: ", get_zips$geoid)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=temp_util$new_name,
+            title="Solstice NM Utilities") %>%
+  
+  addPolygons(data=el_paso_zips_df,
+              group="El Paso Zips",
+              weight =1 ,
+              fillOpacity = 0.6,
+              color="purple",
+              popup=paste("Zip Code: ", el_paso_zips_df$geoid_int)) %>%
+  addPolygons(data=pnm_zips_df,
+              group="PNM Zips",
+              weight =1 ,
+              fillOpacity = 0.6,
+              color="orange",
+              popup=paste("Zip Code: ", pnm_zips_df$geoid_int)) %>%
+  addPolygons(data=xnm_zips_df,
+              group="Xcel Zips",
+              weight =1 ,
+              fillOpacity = 0.6,
+              color="green",
+              popup=paste("Zip Code: ", xnm_zips_df$geoid_int) )%>%
+              
+  
+    addLayersControl(
+        overlayGroups=c( "Utility Zones", "ZIPs", "El Paso Zips", "PNM Zips", "Xcel Zips"))
+
+
+```
+  
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_zips <- get_zips %>%
+  st_drop_geometry() %>%
+  select(Zip = geoid, `El Paso Electric` = el_paso_tag,
+         Xcel = xnm_tag, `Public Service Company` = pnm_tag)
+
+datatable(
+  temp_zips,
+  extensions = 'Buttons', 
+  options = list(
+    dom = 'Bfrtip',
+    buttons = 
+      list(
+        list(
+          extend = 'csv',
+          filename = "All_Zips",
+          title = ''
+        )
+      )
+  )
+)
+```
+
 # LMI Qualification
 
 
@@ -128,48 +319,6 @@ New Mexico LMI Qualification methods include:
   
 
 Census data is available for the population receiving Medicaid, SNAP, and number of households at or below 80% AMI. The following analysis quantifies the total eligible LMI population by each of these three categories.
-
-Solstice operates in the following three utility zones in New Mexico:
-
-  * Public Service Company of New Mexico
-  * Excel
-  * El Paso Electric
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-pal5 <- colorFactor(
-  palette="viridis",
-  domain=temp_util$new_name
-)
-
-leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data=temp_util,
-              group="Utility Zones",
-              stroke=TRUE,
-              color=~pal5(temp_util$new_name),
-              dashArray="3",
-              fillOpacity=0.5,
-              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
-  addPolygons(data=get_zips,
-              group="ZIPs",
-              weight = 1,
-              fillOpacity = 0,
-              color="black",
-              dashArray = "3,3",
-              popup=paste("ZIP Code: ", get_zips$geoid)) %>%
-  addLegend(position="bottomright",
-            pal=pal5,
-            values=temp_util$new_name,
-            title="Solstice NM Utilities") %>%
-  
-    addLayersControl(
-        overlayGroups=c( "Utility Zones", "ZIPs"))
-
-
-```
-  
-
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
