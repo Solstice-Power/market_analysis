@@ -23,4 +23,9 @@ navbar:
           href: Minnesota.html
         - text: "Massachusetts"
           href: Massachusetts.html
+    - text: "Requests"
+      menu:
+        - text: "Ad-Hoc Requests"
+          href: ad_hoc.html
+
           

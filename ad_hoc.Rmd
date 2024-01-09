@@ -1,0 +1,70 @@
+---
+title: "Ad-Hoc Requests"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+This section summarizes and documents historic ad-hoc requests for geospatial, census, or marketing supporting data. 
+
+# Ad-Hoc Requests
+
+## DATA - 16
+
+[DATA-16](https://solsticepower.atlassian.net/browse/DATA-16)
+
+Request received on 1/8/2024. Summary was to pull Illinois data for Knox, Fulton, Peoria, Stark, Henry, Mercer, Warren and Winnebago Counties; in Minnesota pulling for Sherburne, Wright, Wabasha, Chisago, Meeker and any bordering counties. 
+
+```{r setup, include=FALSE}
+
+source('helper_functions.R')
+load_packages()
+
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+il_final_df <- read_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/il_final_table.csv")
+
+mn_final_df <- read_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/mn_final_table.csv")
+```
+
+### Illinois
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+datatable(il_final_df, caption = "Illinois County Demographic Data Requested")%>%
+    formatCurrency('Total Population',currency = "", interval = 3, mark = ",", digits = 0) %>%
+    formatCurrency('Total HHs',currency = "", interval = 3, mark = ",", digits = 0) %>%
+    formatCurrency('<80% AMI HHs',currency = "", interval = 3, mark = ",", digits = 0)
+
+
+```
+
+### Minnesota
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+datatable(mn_final_df, caption = "Minnesota County Demographic Data Requested")%>%
+    formatCurrency('Total Population',currency = "", interval = 3, mark = ",", digits = 0) %>%
+     formatCurrency('Total HHs',currency = "", interval = 3, mark = ",", digits = 0) %>%
+    formatCurrency('<150% AMI Pop',currency = "", interval = 3, mark = ",", digits = 0) %>%
+    formatCurrency('<150% AMI HHs',currency = "", interval = 3, mark = ",", digits = 0) 
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
