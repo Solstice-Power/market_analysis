@@ -906,6 +906,12 @@ leaflet() %>%
 )
 ```
 
+
+```{r}
+
+```
+
+
 The table below gives the zip codes tagged to at least 5% area covered by the NGRID Zone E. In total, 368 zip codes are tagged. 90 of the zip codes are covered by a DAC zone, whereas 6 of the zip codes are within a pre-screened area, as defined above. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}

@@ -103,6 +103,24 @@ zip_table
 
 
 
+```{r}
+
+# nm_blocks <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/nm_census_block_data.geojson")
+# 
+# nm_blocks <- st_transform(nm_blocks, st_crs(temp_util))
+# 
+# pop_by_util <- nm_blocks %>%
+#   st_point_on_surface() %>%
+#   st_join(temp_util %>% select(Utility = NAME)) %>%
+#   st_drop_geometry() %>%
+#   group_by(Utility) %>%
+#   summarize(Population = sum(block_pop)) %>%
+#   mutate(Percent = Population/sum(Population))
+# 
+# pop_by_util
+
+```
+
 
 
 
@@ -783,6 +801,24 @@ map <- leaflet() %>%
             pal = pal3,
             values = nm_tracts$snap_hh,
             title="Number of HHs Receiving SNAP:"
+  ) %>%
+  
+    addPolygons(
+    data=nm_tracts,
+    group="Pop",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal3(tract_pop),
+    popup=paste("Tract: ", nm_tracts$GEOID, "<br>", 
+                "Tract Population: ", nm_tracts$tract_pop)
+  ) %>%
+  
+  addLegend("bottomleft",
+            group="Pop",
+            pal = pal3,
+            values = nm_tracts$tract_pop,
+            title="Tract Pop:"
   ) %>%
   
   addPolygons(
