@@ -165,6 +165,15 @@ This analysis provides an initial state level estimate of the population eligibl
 
 In addition to the IRA bonus tax credit, it is useful to consider the New Markets Tax Credit (NMTC) program for a comprehensive understanding of economic incentives in low-income and distressed communities. The NMTC program, managed by the Community Development Financial Institutions (CDFI) Fund, targets investment in communities that meet specific low-income criteria, primarily based on poverty rates or median family income. Unlike the IRA, which focuses on specific environmental and economic factors such as energy burden or PM2.5 exposure, the NMTC program centers more broadly on economic revitalization. Eligibility under the NMTC program is determined by census tracts where the poverty rate is at least 20% or where median family income does not exceed 80% of the area median income (AMI). This approach ensures that investments are directed towards areas in need of economic growth and infrastructure development, complementing the objectives of the IRA. Understanding the overlap and distinct features of both the IRA and NMTC can provide a more holistic view of the socio-economic landscape and opportunities for investment in underserved communities.
 
+The below table shows the following:
+
+
+* **Population** - Total 2022 ACS 5 Year Population.
+* **NMTC_2015** - Proportion of population covered by the 2023 Census tract boundary that satisfies the definition of a low-income community for the purposes of Category 1 applications via the New Market Tax Credit (NMTC) map created using 2011-2015 ACS data. Facilities in NMTC_2015 regions meet the geographic eligibility criteria for Category 1 only if applications are submitted *before* August 31st, 2024.
+* **NMTC_2020** - Proportion of the population covered by the 2023 Census tract boundary that satisfies the definition of a low-income community for the purposes of Category 1 applications via the New Market Tax Credit (NMTC) map created using 2016-2020 ACS data. 
+* **CEJST** - Proportion of population covered that meets the Climate and Economic Justice Screening Tool's (CEJST) threshold for disadvantage in the 'Energy' category of Burden using data released by the CEJST Program in November 2022.
+* **PPC** - Persistent Poverty County population as defined by the EDA. 
+
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
