@@ -11,6 +11,8 @@ output:
 
 source('helper_functions.R')
 load_packages()
+library(readxl)
+
 
 
 
@@ -149,4 +151,169 @@ datatable(temp_geo, caption = "Solstice State Markets Geo- and LMI Populations")
 
 
 ```
+
+
+
+
+
+
+
+
+# IRA Eligible Population by State
+
+This analysis provides an initial state level estimate of the population eligible for the IRA bonus tax credit as described on the Solstice [website](https://solstice.us/solstice-blog/inflation-reduction-act-investment-tax-credit/). As a reminder, eligible populations must reside in a Persistent Poverty County or in a Climate & Economic Justice Screening Tool: census tracts designated as disadvantaged based on 90th percentile energy burden or PM2.5 exposure + 65th percentile low-income. 
+
+In addition to the IRA bonus tax credit, it is useful to consider the New Markets Tax Credit (NMTC) program for a comprehensive understanding of economic incentives in low-income and distressed communities. The NMTC program, managed by the Community Development Financial Institutions (CDFI) Fund, targets investment in communities that meet specific low-income criteria, primarily based on poverty rates or median family income. Unlike the IRA, which focuses on specific environmental and economic factors such as energy burden or PM2.5 exposure, the NMTC program centers more broadly on economic revitalization. Eligibility under the NMTC program is determined by census tracts where the poverty rate is at least 20% or where median family income does not exceed 80% of the area median income (AMI). This approach ensures that investments are directed towards areas in need of economic growth and infrastructure development, complementing the objectives of the IRA. Understanding the overlap and distinct features of both the IRA and NMTC can provide a more holistic view of the socio-economic landscape and opportunities for investment in underserved communities.
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+# Good map here of [census tract](https://experience.arcgis.com/experience/12227d891a4d471497ac13f60fffd822/page/Page/?data_id=dataSource_3-18add75d2c8-layer-6%3A34787) and full data [source](https://data.nrel.gov/submissions/222#:~:text=Counties%20are%20displayed%20that%20meet,plus%203%20evaluation%20time%20periods). 
+
+tract_data <- read_excel("~/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/IRA_Analysis/qualified_tracts_overlay.xlsx",
+                         sheet = "Tract eligibility percentages") %>%
+  mutate(GEOID = GEOID_2022)
+
+ppc_data <- read_excel("~/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/IRA_Analysis/EDA_FY23_PPCs.xlsx",
+                         sheet = "Underlying_Data") %>%
+  mutate(ppc_tag = ...7)
+
+
+
+
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+# Make sure your API key is set (replace 'your_api_key' with your actual key)
+#census_api_key("ad86ad3edc7d52897ffc0f251537babfddeac870", install = TRUE, overwrite=TRUE)
+
+# Get the vector of state abbreviations
+states <- state.abb
+
+# Initialize an empty data frame to store results
+total_population <- data.frame()
+
+# Loop through each state
+for (state in states) {
+  # Attempt to request tract-level data for the current state
+  state_data <- tryCatch({
+    get_acs(geography = "tract", 
+            variables = "B01001_001", 
+            geometry = FALSE, 
+            year = 2022, 
+            state = state)
+  }, error = function(e) {
+    # Print the error message
+    message("Error for state: ", state, "; Error: ", e$message)
+    # Return NULL in case of an error
+    return(NULL)
+  })
+  
+  # If data is retrieved, bind it to the total_population data frame
+  if (!is.null(state_data)) {
+    total_population <- rbind(total_population, state_data)
+  }
+}
+
+# Check the result
+if(nrow(total_population) == 0) {
+  message("No data was retrieved.")
+} else {
+  message("Data retrieved successfully.")
+}
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+# Check if the columns exist and are unique
+if(!"GEOID" %in% names(tract_data)) stop("Column 'GEOID_2022' not found in tract_data")
+if(!"GEOID" %in% names(total_population)) stop("Column 'GEOID' not found in total_population")
+if(anyDuplicated(tract_data$GEOID_2022)) stop("Duplicate values found in 'GEOID_2022' of tract_data")
+if(anyDuplicated(total_population$GEOID)) stop("Duplicate values found in 'GEOID' of total_population")
+
+# Perform the merge
+merged_df <- merge(tract_data, total_population, by="GEOID")
+#merged_df <- merge(tract_data, total_population, by.x = "GEOID_2022", by.y = "GEOID")
+
+# Rest of your code
+
+#merged_df <- merge(tract_data, total_population, by.x="GEOID_2022", by.y= "GEOID") 
+
+merged_df$StateName <- tolower(merged_df$StateName)
+
+merged_df$StateAbbreviation <- state.abb[match(merged_df$StateName, tolower(state.name))]
+
+
+
+# Create a vector of names from ppc_data where ppc_tag is "Yes"
+names_with_yes_tag <- ppc_data$Name[ppc_data$ppc_tag == "Yes"]
+
+merged_df <- merged_df %>%
+  mutate(Name = paste(CountyName, "County,", StateAbbreviation)) %>%
+  mutate(ppc_tag = as.integer(Name %in% names_with_yes_tag)) 
+
+
+
+
+
+```
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+flipped_df <- merged_df %>%
+  group_by(State = StateName) %>%
+  summarize(Population = sum(estimate, na.rm=T),
+            NMTC_2015 = round(sum(NTMC2015_pct * estimate), 0 ),
+            NMTC_2020 = round(sum(NTMC2020_pct * estimate), 0 ),
+            CEJST = round(sum(CEJST2022_pct * estimate), 0 ),
+            PPC = round(sum(ppc_tag * estimate), 0 )
+            ) %>%
+ # mutate(NMTC_2022 = NTMC2020_pct * Population) %>%
+  arrange(desc(Population)) %>%
+  adorn_totals("row")
+
+
+datatable(flipped_df, caption = "State IRA Eligible Populations") %>%
+    formatCurrency('Population',currency = "", interval = 3, mark = ",", digits = 0) %>%
+    formatCurrency('NMTC_2015', currency = "", interval = 3, mark = ",", digits=0) %>%
+    formatCurrency('NMTC_2020', currency = "", interval = 3, mark = ",", digits=0) %>%
+    formatCurrency('CEJST', currency = "", interval = 3, mark = ",", digits=0) %>%
+    formatCurrency('PPC', currency = "", interval = 3, mark = ",", digits=0)
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
