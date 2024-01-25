@@ -1,0 +1,137 @@
+---
+title: "Maryland"
+output: 
+  rmdformats::downcute:
+    toc_depth: 3
+---
+
+
+
+```{r setup, include=FALSE}
+
+source('helper_functions.R')
+load_packages()
+
+
+
+```
+
+
+# Overivew
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state="MD",
+  variables=c("Median Income" = "S1901_C01_012E"),
+  year=2019, 
+  geometry=TRUE) %>%
+  mutate(MedInc = estimate) %>%
+  select(geoid=GEOID, geometry)
+
+
+# BGE 1167
+# PEPCO 15270
+# Delmarva 5027
+# Potomoc Edison Company 15263
+# SMECO 17637
+
+temp_util <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") %>%
+  filter(ID %in% c(1167, 15270, 5027, 15263, 17637)) %>%
+  mutate(new_name = case_when(
+    ID == 1167 ~ "BGE",
+    ID == 15270 ~ "PEPCO", 
+    ID == 5027 ~ "Delmarva",
+    ID == 15263 ~ "Potomac Edison",
+    ID == 17637 ~ "SMECO"
+  ))
+
+
+
+
+
+```
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    state == 27 ~ "Minnesota",
+    state == 24 ~ "Maryland",
+    TRUE ~ "Other"
+  )) %>%
+  filter(State_Name == "Maryland") 
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+
+temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
+  st_make_valid()
+```
+
+
+
+## Utility Map
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.5,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=temp_util$new_name,
+            title="Maryland Utilities")
+```
+
+# Geoqualification
+
+median incmoe of the census tract is 175% of FPL
+
+
+# LMI Qualificaiton
+
+
+
+
+
+
+
+
+
+
+

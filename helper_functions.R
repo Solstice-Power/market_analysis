@@ -57,7 +57,7 @@ load_chas <- function()
   
   # return(chas_df)
   chas_df <- chas_df %>%
-    filter(st %in% c(17,35,25,34,36,27, 6, 10)) %>%
+    filter(st %in% c(17,35,25,34,36,27, 6, 10, 24)) %>%
 
     mutate(geoid = gsub("14000US", "", geoid)) %>%
     
@@ -194,6 +194,7 @@ load_chas <- function()
 throw_some_geo_on_that <- function(state_shape, census_lines)
   # takes the state utility zone layer as a SF, overlays the 
   # census tracts and counts the number of HHs <= 100% AMI 
+  
 
 {
 

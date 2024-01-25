@@ -7,22 +7,25 @@ navbar:
       href: index.html
     - text: "States"
       menu:
+        - text: "California"
+          href: California.html
+        - text: "Delaware"
+          href: Delaware.html
+        - text: "Illinois"
+          href: Illinois.html
+        - text: "Maryland"
+          href: Maryland.html
+        - text: "Massachusetts"
+          href: Massachusetts.html
+        - text: "Minnesota"
+          href: Minnesota.html
+        - text: "New Jersey"
+          href: New-Jersey.html
         - text: "New Mexico"
           href: New-Mexico.html
         - text: "New York"
           href: New-York.html
-        - text: "California"
-          href: California.html
-        - text: "Illinois"
-          href: Illinois.html
-        - text: "New Jersey"
-          href: New-Jersey.html
-        - text: "Delaware"
-          href: Delaware.html
-        - text: "Minnesota"
-          href: Minnesota.html
-        - text: "Massachusetts"
-          href: Massachusetts.html
+
     - text: "Requests"
       menu:
         - text: "Ad-Hoc Requests"
