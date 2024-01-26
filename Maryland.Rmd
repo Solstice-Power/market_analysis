@@ -19,11 +19,23 @@ load_packages()
 
 # Overivew
 
+The Maryland Community Solar [pilot](https://www.psc.state.md.us/electricity/community-solar-pilot-program/) has been running for 7 years and culminates in 2024. The program incetivizes developers to provide serivces to LMI customers. LMI qualification is defined for both the Low and Moderate income [portions](https://casetext.com/regulation/maryland-administrative-code/title-20-public-service-commission/subtitle-62-community-solar-energy-generation-systems/chapter-206201-general/section-20620102-definitions):
+
+* **Low income** means a subscriber whose gross annual household income is at or below 175 percent of the federal poverty level for the year of subscription or who is certified as eligible for any federal, state, or local assistance program that limits participation to households whose income is at or below 175 percent of the federal poverty limit.
+* **Moderate income** means a subscriber whose gross annual household income is at or below 80 percent of the median income for Maryland for the year of subscription.
 
 
 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
+
+get_tracts_old <- get_acs(
+  geography="tract", 
+  state="MD",
+  variables = c(
+                "B17026_007"),
+  year=2019, 
+  geometry=TRUE) 
 
 
 
@@ -31,11 +43,24 @@ load_packages()
 get_tracts <- get_acs(
   geography="tract", 
   state="MD",
-  variables=c("Median Income" = "S1901_C01_012E"),
-  year=2019, 
+  variables = c(
+                "B01003_001", # total pop
+                "B17026_007",
+                "B17026_006",
+                "B17026_005",
+                "B17026_004",
+                "B17026_003",
+                "B17026_002",
+                "B17026_001"),
+  year=2022, 
   geometry=TRUE) %>%
-  mutate(MedInc = estimate) %>%
-  select(geoid=GEOID, geometry)
+  group_by(GEOID) %>%
+    summarize(fams_under_175fpl = estimate[variable=="B17026_007"]+
+                                estimate[variable=="B17026_006"]+estimate[variable=="B17026_005"]+estimate[variable=="B17026_004"]+
+                                estimate[variable=="B17026_003"]+estimate[variable=="B17026_002"],
+              fams_total = estimate[variable=="B17026_001"],
+              pop_total = estimate[variable=="B01003_001"]) %>%
+  mutate(Pct_Under_175 = fams_under_175fpl/fams_total)
 
 
 # BGE 1167
@@ -83,18 +108,34 @@ chas_df <- load_chas() %>%
 
 
 
-add_geo <- merge(chas_df, get_tracts) 
+add_geo <- merge(chas_df, get_tracts_old, by.x= "geoid", by.y="GEOID")
 
 add_geo <- st_as_sf(add_geo)
 
 
 temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
   st_make_valid()
+
+get_tracts <- st_as_sf(get_tracts)
+
+get_tracts <- st_transform(get_tracts, st_crs(temp_util)) %>%
+  st_make_valid() %>%
+  filter(!is.na(Pct_Under_175))
 ```
 
 
 
 ## Utility Map
+
+We consider five utilities in Maryland:
+
+* Baltimore Gas and Electric
+* Southern Maryland Electric Cooperative
+* Delmarva Power
+* Potomac Electric (Pepco)
+* Potomac Edison
+
+The map shows the distribution of five utilities coverage across the state. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -102,6 +143,19 @@ pal5 <- colorFactor(
   palette="viridis",
   domain=temp_util$new_name
 )
+
+palreds <- colorNumeric(
+  palette="Reds",
+  domain=get_tracts$Pct_Under_175
+)
+
+pal_mod <- colorNumeric(
+  palette="Blues",
+  domain=add_geo$AMI_80_Pct
+)
+
+get_tracts <- get_tracts %>% 
+  filter(!is.na(geometry)) 
 
 leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
@@ -112,22 +166,192 @@ leaflet() %>%
               dashArray="3",
               fillOpacity=0.5,
               popup=paste("Utility Zone: ", temp_util$new_name)) %>%
-  addLegend(position="bottomright",
+  addLegend(position="bottomleft",
             pal=pal5,
+            group="Utility Zones",
             values=temp_util$new_name,
-            title="Maryland Utilities")
+            title="Maryland Utilities")# %>%
+  
+  # #Moderate Income
+  #  addPolygons(data=add_geo,
+  #             group="Moderate Income",
+  #             stroke=TRUE,
+  #             color=~pal_mod(AMI_80_Pct),
+  #             fillOpacity=0.5, 
+  #             popup=paste("Census Tract: ", add_geo$geoid, "<br>",
+  #                         "Number of Families <80% AMI: ", add_geo$AMI_80,"<br>",
+  #                         "Percent <80% AMI: ", add_geo$AMI_80_Pct)) %>%
+  # addLegend("bottomright",
+  #           pal=pal_mod,
+  #           title="Pct <80% AMI",
+  #           values=add_geo$AMI_80_Pct,
+  #           group="Moderate Income") %>%
+  # 
+  #   #Low Income
+  # addPolygons(data=get_tracts,
+  #             group="Low Income",
+  #             stroke=TRUE,
+  #             color=~palreds(Pct_Under_175),
+  #             fillOpacity=0.5, 
+  #             popup=paste("Census Tract: ", get_tracts$GEOID, "<br>",
+  #                         "Number of Families <175% FPL: ", get_tracts$fams_under_175fpl,"<br>",
+  #                         "Percent <175% FPL: ", get_tracts$Pct_Under_175)) %>%
+  # addLegend("topright",
+  #           pal=palreds,
+  #           title="Pct <175% FPL",
+  #           values=get_tracts$Pct_Under_175,
+  #           group="Low Income") %>%
+  # 
+  #   
+  #     addLayersControl(
+  #   overlayGroups=c( "Low Income", "Moderate Income", "Utility Zones"),  # Update the order for consistency
+  #   options = layersControlOptions(collapsed = FALSE)
+  # ) %>%
+  # hideGroup("Low Income") %>%
+  # hideGroup("Moderate Income")
 ```
+
+
+
+The table below shows each of the five utilities in Maryland and the respective demographic data attribute, including population, households and data representing Low and Moderate income distributions. The largest utility in the state in terms of population and households is BGE. In terms of low and moderate income concentrations, BGE and Delmarva hold the highest concentration of the respective populations. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_tracts <- get_tracts 
+
+
+
+temp_tracts <- st_transform(temp_tracts, st_crs(temp_util)) %>%
+  st_make_valid()
+
+temp_table <- temp_tracts %>% 
+  st_point_on_surface() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(Population = sum(pop_total, na.rm=T),
+            Households = sum(fams_total,na.rm=T),
+            `HH <175% FPL`= sum(fams_under_175fpl, na.rm=T)) %>%
+  mutate('Pct <175%' = `HH <175% FPL`/Households)
+
+
+temp_tracts <- add_geo 
+
+temp_tracts <- st_transform(add_geo, st_crs(temp_util)) %>%
+  st_make_valid()
+
+
+temp_table_mod <- temp_tracts %>% 
+  st_point_on_surface() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(AMI_80 = sum(AMI_80, na.rm=T))  %>%
+  select(`HH <80% AMI` = AMI_80)
+
+temp_table <- cbind(temp_table, temp_table_mod) %>%
+  mutate(`Pct <80%` = `HH <80% AMI`/Households)
+
+
+
+datatable(temp_table, caption = "Maryland Electric Utility Demographic Statistics") %>%
+   formatCurrency('Population',currency = "", interval = 3, mark = ",", digits=0) %>%
+   formatCurrency('Households',currency = "", interval = 3, mark = ",", digits=0) %>%
+  formatCurrency('HH <175% FPL', currency = "", interval = 3, mark = ",", digits=0) %>%
+  formatCurrency('HH <80% AMI', currency = "", interval = 3, mark = ",", digits=0) %>%
+   formatPercentage('Pct <175%',digits=1) %>%
+   formatPercentage('Pct <80%',digits=1) 
+
+
+
+```
+
+
+
+
 
 # Geoqualification
 
-median incmoe of the census tract is 175% of FPL
+Geoqualification is only available for Low income, which removes the Moderate income portion. We calculate the number of households living at or below 175 percent of the federal poverty line in Maryland, and tag the number of households to each of the Maryland utilities. This represents the 'Low Income' layer in the map below. 
 
-
-# LMI Qualificaiton
-
+To estimate the potential population qualified as LMI in Maryland, we calculate the number of households living at or below 80% AMI. This layer is added as 'Moderate Income'. 
 
 
 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+palreds <- colorNumeric(
+  palette="Reds",
+  domain=get_tracts$Pct_Under_175
+)
+
+pal_mod <- colorNumeric(
+  palette="Blues",
+  domain=add_geo$AMI_80_Pct
+)
+
+get_tracts <- get_tracts %>% 
+  filter(!is.na(geometry)) 
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.5,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addLegend(position="bottomleft",
+            pal=pal5,
+            group="Utility Zones",
+            values=temp_util$new_name,
+            title="Maryland Utilities") %>%
+  
+  #Moderate Income
+   addPolygons(data=add_geo,
+              group="Moderate Income",
+              stroke=TRUE,
+              color=~pal_mod(AMI_80_Pct),
+              fillOpacity=0.5,
+              popup=paste("Census Tract: ", add_geo$geoid, "<br>",
+                          "Number of Families <80% AMI: ", add_geo$AMI_80,"<br>",
+                          "Percent <80% AMI: ", add_geo$AMI_80_Pct)) %>%
+  addLegend("bottomright",
+            pal=pal_mod,
+            title="Pct <80% AMI",
+            values=add_geo$AMI_80_Pct,
+            group="Moderate Income") %>%
+
+    #Low Income
+  addPolygons(data=get_tracts,
+              group="Low Income",
+              stroke=TRUE,
+              color=~palreds(Pct_Under_175),
+              fillOpacity=0.5,
+              popup=paste("Census Tract: ", get_tracts$GEOID, "<br>",
+                          "Number of Families <175% FPL: ", get_tracts$fams_under_175fpl,"<br>",
+                          "Percent <175% FPL: ", get_tracts$Pct_Under_175)) %>%
+  addLegend("topright",
+            pal=palreds,
+            title="Pct <175% FPL",
+            values=get_tracts$Pct_Under_175,
+            group="Low Income") %>%
+
+
+      addLayersControl(
+    overlayGroups=c( "Low Income", "Moderate Income", "Utility Zones"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("Low Income") %>%
+  hideGroup("Moderate Income")
+```
 
 
 
