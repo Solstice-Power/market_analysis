@@ -251,7 +251,7 @@ temp_table_mod <- temp_tracts %>%
   select(`HH <80% AMI` = AMI_80)
 
 temp_table <- cbind(temp_table, temp_table_mod) %>%
-  mutate(`Pct <80%` = `HH <80% AMI`/Households)
+  mutate(`Pct <80%` = `HH <80% AMI`/Households) 
 
 
 
@@ -354,8 +354,157 @@ leaflet() %>%
 ```
 
 
+# Market Saturation 
 
 
+## LIFT
+
+
+
+
+```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
+
+
+lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
+
+lift_df <- separate(lift_df, GeoCode, into = c("long", "lat"), sep = ",")
+
+lift_df <- st_as_sf(lift_df, coords = c("long", "lat"), crs = st_crs(get_tracts))
+
+lift_df <- lift_df %>%
+  filter(State == "Maryland")
+
+
+pal_potLMI <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = lift_df$Potential...LMI.Subscribers)
+
+pal_cap <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = lift_df$Project.Capacity.KW.AC)
+
+
+# 
+# pal <- colorNumeric(
+#   palette = "viridis",
+#  # reverse=TRUE,
+#   domain = ny_geo$AMI_80)
+# 
+# pal2 <- colorNumeric(
+#   palette = "Purples",
+#  # reverse=TRUE,
+#   domain = ny_geo$AMI_80_Pct)
+# 
+# pal3 <- colorNumeric(
+#   palette = "viridis",
+#  # reverse=TRUE,
+#   domain = total_ny_tracts$snap_hh)
+
+
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+palreds <- colorNumeric(
+  palette="Reds",
+  domain=get_tracts$Pct_Under_175
+)
+
+pal_mod <- colorNumeric(
+  palette="Blues",
+  domain=add_geo$AMI_80_Pct
+)
+
+get_tracts <- get_tracts %>% 
+  filter(!is.na(geometry)) 
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  # addLegend(position="bottomleft",
+  #           pal=pal5,
+  #           group="Utility Zones",
+  #           values=temp_util$new_name,
+  #           title="Maryland Utilities") %>%
+
+    addCircleMarkers(data = lift_df,
+                   group="Potential LMI Subscribers",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(lift_df$Potential...LMI.Subscribers), 
+                   color = ~pal_potLMI(Potential...LMI.Subscribers)) %>%
+  addLegend("bottomright",
+            group="Potential LMI Subscribers",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_potLMI,
+            values = lift_df$Potential...LMI.Subscribers,
+            title="Potential LMI Subscribers") %>%
+
+    ## Project Capacity ## 
+  
+  addCircleMarkers(data = lift_df,
+                   group="Project Capacity",
+                   popup = ~paste("Program Name: ", Program.Name, "<br>",
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
+                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
+                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
+                   radius = sqrt(lift_df$Project.Capacity.KW.AC), 
+                   color = ~pal_cap(Project.Capacity.KW.AC)) %>%
+  addLegend("topleft",
+             group="Project Capacity",  # This should be consistent with the group name in the addPolygons function
+            pal = pal_cap,
+            values = lift_df$Project.Capacity.KW.AC,
+            title="Project Capacity") %>%
+
+
+  addLayersControl(
+    overlayGroups=c( "Utility Zones", "Potential LMI Subscribers", "Project Capacity"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("Project Capacity") 
+
+
+
+```
+
+
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+temp_table <- lift_df %>% 
+  st_point_on_surface() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(`Project Capacity` = sum(Project.Capacity.KW.AC, na.rm=T),
+            `Potential LMI Subscribers` = sum(Potential...LMI.Subscribers,na.rm=T))
+
+
+
+
+datatable(temp_table, caption = "Maryland Existing Community Solar Data by Utility Zone") %>%
+   formatCurrency('Project Capacity',currency = "", interval = 3, mark = ",", digits=0) %>%
+   formatCurrency('Potential LMI Subscribers',currency = "", interval = 3, mark = ",", digits=0) 
+
+
+```
 
 
 
