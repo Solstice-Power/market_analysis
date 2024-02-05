@@ -203,10 +203,105 @@ throw_some_geo_on_that <- function(state_shape, census_lines)
 }
 
 
+library(readxl)
+
+
+small_med_large_buildings <- function(state_abbrev)
+  
+{
+  
+  
+  library(tidycensus)
+  
+  get_zips <- get_acs(
+    geography="zcta",
+    state=state_abbrev,
+    variables=c("Median Income" = "S1901_C01_012E"),
+    year=2018, 
+    geometry=TRUE)
+  
+  
+  #SOLAR -On-site electricity generation from solar; 'Not applicable' applies to apartment buildings with 2 or more units.	
+  #1 Yes
+  #0 No
+  #-2 Not applicable"
+  
+  solar_df <- read_excel("data/resi/Rooftop_PV_Technical_Potential.xlsx", sheet = "Rooftop_PV_with_Lidar_Coverage") %>%
+    filter(State == state_abbrev) %>%
+    mutate(small = `Buildings - SMALL - with 10m2+ available area`,
+           medium = `Buildings - MEDIUM with 10m2+ available area`,
+           large = `Buildings - LARGE - with 10m2+ available area`,
+           total = `Total Building Count`) %>%
+    select(Zip, small, medium, large, total)
+  
+  # returns dataframe with geo 
+  
+  solar_df<- merge(solar_df, get_zips, by.x = "Zip", by.y = "GEOID")
+  
+  solar_df <- st_as_sf(solar_df)
+  
+  solar_df <- st_transform(solar_df, st_crs(get_zips)) %>%
+    st_make_valid()
+  
+  solar_df
+  
+}
+
+
+small_potential <- function(state_abbrev)
+  
+{
+  
+  
+  library(tidycensus)
+  
+  get_zips <- get_acs(
+    geography="zcta",
+    state=state_abbrev,
+    variables=c("Median Income" = "S1901_C01_012E"),
+    year=2018, 
+    geometry=TRUE)
+  
+  
+  #SOLAR -On-site electricity generation from solar; 'Not applicable' applies to apartment buildings with 2 or more units.	
+  #1 Yes
+  #0 No
+  #-2 Not applicable"
+  
+  solar_df <- read_excel("data/resi/Rooftop_PV_Technical_Potential.xlsx", sheet = "Small_Building_Suitability") %>%
+    filter(state == state_abbrev) 
+  
+  # returns dataframe with geo 
+  
+  solar_df<- merge(solar_df, get_zips, by.x = "zip", by.y = "GEOID")
+  
+  solar_df <- st_as_sf(solar_df)
+  
+  solar_df <- st_transform(solar_df, st_crs(get_zips)) %>%
+    st_make_valid()
+  
+  solar_df
+  
+}
 
 
 
 
+share_sun_data <- function(state_abbrev)
+  
+{
+  #SOLAR -On-site electricity generation from solar; 'Not applicable' applies to apartment buildings with 2 or more units.	
+  #1 Yes
+  #0 No
+  #-2 Not applicable"
+  
+  solar_df <- read_excel("data/cs/2023 Sharing the Sun Database Release Final (2).xlsx", 
+                       sheet = "Project List") %>%
+    filter(State == state_abbrev)
+  
+  solar_df
+  
+}
 
 
 

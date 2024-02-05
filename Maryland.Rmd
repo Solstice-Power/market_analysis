@@ -357,9 +357,14 @@ leaflet() %>%
 # Market Saturation 
 
 
-## LIFT
+
+## Community Solar
+
+We use two sources to estimate the number of community solar projects in Maryland: LIFT Solar [database](https://lift.groundswell.org/) by Groundswell and the NREL Sharing the Sun [database](https://data.nrel.gov/submissions/220). Geospatial data is available for the LIFT database and is visualized below. 
 
 
+
+### LIFT Map
 
 
 ```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
@@ -419,8 +424,8 @@ pal_mod <- colorNumeric(
   domain=add_geo$AMI_80_Pct
 )
 
-get_tracts <- get_tracts %>% 
-  filter(!is.na(geometry)) 
+get_tracts <- get_tracts %>%
+  filter(!is.na(geometry))
 
 leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
@@ -440,11 +445,11 @@ leaflet() %>%
     addCircleMarkers(data = lift_df,
                    group="Potential LMI Subscribers",
                    popup = ~paste("Program Name: ", Program.Name, "<br>",
-                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>",
                                   "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
                                   "LMI Savings: ", LMI.Customer.Savings.., "<br>",
                                   "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
-                   radius = sqrt(lift_df$Potential...LMI.Subscribers), 
+                   radius = sqrt(lift_df$Potential...LMI.Subscribers),
                    color = ~pal_potLMI(Potential...LMI.Subscribers)) %>%
   addLegend("bottomright",
             group="Potential LMI Subscribers",  # This should be consistent with the group name in the addPolygons function
@@ -452,16 +457,16 @@ leaflet() %>%
             values = lift_df$Potential...LMI.Subscribers,
             title="Potential LMI Subscribers") %>%
 
-    ## Project Capacity ## 
-  
+    ## Project Capacity ##
+
   addCircleMarkers(data = lift_df,
                    group="Project Capacity",
                    popup = ~paste("Program Name: ", Program.Name, "<br>",
-                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
+                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>",
                                   "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
                                   "LMI Savings: ", LMI.Customer.Savings.., "<br>",
                                   "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
-                   radius = sqrt(lift_df$Project.Capacity.KW.AC), 
+                   radius = sqrt(lift_df$Project.Capacity.KW.AC),
                    color = ~pal_cap(Project.Capacity.KW.AC)) %>%
   addLegend("topleft",
              group="Project Capacity",  # This should be consistent with the group name in the addPolygons function
@@ -474,7 +479,7 @@ leaflet() %>%
     overlayGroups=c( "Utility Zones", "Potential LMI Subscribers", "Project Capacity"),  # Update the order for consistency
     options = layersControlOptions(collapsed = FALSE)
   ) %>%
-  hideGroup("Project Capacity") 
+  hideGroup("Project Capacity")
 
 
 
@@ -482,6 +487,7 @@ leaflet() %>%
 
 
 
+The table below shows the total project capacity in MW AC by utility zone for both the LIFT and NREL datasets. Additionally, the LIFT dataset includes estimated number of LMI subscribers for the existing projects. According to the LIFT dataset, there are currently 32 community solar projects in Maryland represent 51.5 MW AC. The NREL dataset shows almost double the capacity, particularly for BGE and PEPCO utility zones. 
 
 
 
@@ -493,18 +499,117 @@ temp_table <- lift_df %>%
   st_join(temp_util %>% select(Utility = new_name)) %>%
   st_drop_geometry() %>%
   group_by(Utility) %>%
-  summarize(`Project Capacity` = sum(Project.Capacity.KW.AC, na.rm=T),
+  summarize(`Project Capacity MW AC LIFT` = sum(Project.Capacity.KW.AC, na.rm=T)/1000,
             `Potential LMI Subscribers` = sum(Potential...LMI.Subscribers,na.rm=T))
 
 
 
 
+share_sun_df <- share_sun_data("MD") %>%
+  mutate(Utility = case_when(
+    grepl("Baltimore", Utility) ~ "BGE",
+    grepl("Delmarva", Utility) ~ "Delmarva",
+    grepl("Potomac Electric", Utility) ~ "PEPCO",
+    grepl("Potomac Edison", Utility) ~ "Potomac Edison"
+  )) %>%
+  group_by(Utility) %>%
+  summarize(`Project Capacity MW AC NREL` = sum(`System Size (MW-AC)`)) %>%
+  select(-Utility)
+
+
+temp_table <- cbind(temp_table, share_sun_df)
+
+
+temp_table <- temp_table %>%
+  adorn_totals("row")
+
+
+
+
+
+
 datatable(temp_table, caption = "Maryland Existing Community Solar Data by Utility Zone") %>%
-   formatCurrency('Project Capacity',currency = "", interval = 3, mark = ",", digits=0) %>%
-   formatCurrency('Potential LMI Subscribers',currency = "", interval = 3, mark = ",", digits=0) 
+  formatCurrency('Project Capacity MW AC LIFT',currency = "", interval = 3, mark = ",", digits=2) %>%
+  formatCurrency('Project Capacity MW AC NREL',currency = "", interval = 3, mark = ",", digits=2) %>%
+  formatCurrency('Potential LMI Subscribers',currency = "", interval = 3, mark = ",", digits=0) 
+
+
+
+
 
 
 ```
+
+
+
+
+## Residential Solar
+
+We aggregate data made available in the NREL [report](https://data.nrel.gov/submissions/121) 'Rooftop Photovoltaic Technical Potential in the United States'. This data is broken into two sections, Rooftop with Lidar Coverage and Suitable Small Buildings.
+
+
+
+### Rooftop with Lidar Coverage
+
+The below table shows the number of buildings that are defined as potential solar adopters, defined by at least 10 square meters of potential roof space. Only zip codes that are covered by Lidar are available, meaning that much of the state is not covered. The next section shows a modeled approach to estimate the number of small buildings in particular that are potential for solar adoption. This data is separated into small, medium, and large buildings. A small building is less than 5,000 square feet, a medium building is between 5,000 and 25,000 square feet, and a large building is greater than 25,000 square feet. 
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+test1 <- small_med_large_buildings("MD")
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+temp_table <- test1 %>% 
+  st_point_on_surface() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(Small = sum(small), 
+            Medium = sum(medium), 
+            Large = sum(large))
+
+datatable(temp_table, caption = "Maryland Rooftop PV Potential") %>%
+  formatCurrency('Small',currency = "", interval = 3, mark = ",", digits=0) %>%
+  formatCurrency('Medium',currency = "", interval = 3, mark = ",", digits=0) %>%
+  formatCurrency('Large',currency = "", interval = 3, mark = ",", digits=0) 
+
+  
+```
+
+
+### Suitable Small Buildings
+
+The next dataset was estimated by NREL authors using modeling techniques for each zip code in the United States. We overlay the small building suitability dataset, defined by buildings less than 5,000 square feet, with our Maryland utility zones. 
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+smb_df <- small_potential("MD") %>%
+  mutate(n_buildings = nbld * pct_suitab)
+
+
+temp_table <- smb_df %>% 
+  filter(pct_suitab > 0) %>%
+  st_point_on_surface() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(`Number Small Suitable Buildings`=sum(n_buildings),
+            `Average Percent Suitable` = mean(pct_suitab))
+  
+
+
+datatable(temp_table, caption = "Maryland Rooftop PV Potential for Small Buildings") %>%
+  formatCurrency('Number Small Suitable Buildings',currency = "", interval = 3, mark = ",", digits=0) %>%
+  formatPercentage('Average Percent Suitable', digits=2) 
+
+
+```
+
+
 
 
 
