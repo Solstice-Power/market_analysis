@@ -358,6 +358,9 @@ leaflet() %>%
 
 
 
+
+
+
 ## Community Solar
 
 We use two sources to estimate the number of community solar projects in Maryland: LIFT Solar [database](https://lift.groundswell.org/) by Groundswell and the NREL Sharing the Sun [database](https://data.nrel.gov/submissions/220). Geospatial data is available for the LIFT database and is visualized below. 
@@ -608,6 +611,71 @@ datatable(temp_table, caption = "Maryland Rooftop PV Potential for Small Buildin
 
 
 ```
+
+
+
+
+## SGI vs SGII
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# Note: ELCNS - Building/energy supplier variable: Annual electricity consumption (kWh)
+
+cbes <- read_csv("data/commercial_buildings/cbecs2018_final_public (1).csv") %>%
+  filter(CENDIV== 6) %>% # South Atlantic Division, MD
+  mutate(
+    sg_tag = case_when(
+      ELCNS/12 > (7500+6000)/2 ~ 2,
+      ELCNS/12 <= (7500+6000)/2 ~ 1
+    )
+  )
+
+
+sg_freq <- sum(cbes$sg_tag==1, na.rm=T)/sum(!is.na(cbes$sg_tag))
+
+
+smb_df <- small_potential("MD") %>%
+    mutate(n_buildings = nbld * pct_suitab) %>%
+  mutate(sg_1_buildings = sg_freq * n_buildings,
+         sg_2_buildings = (1-sg_freq) * n_buildings)
+
+
+
+temp_table <- smb_df %>% 
+  filter(pct_suitab > 0) %>%
+  st_point_on_surface() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(`SGI Buildings`=sum(sg_1_buildings),
+            `SGII Buildings` = sum(sg_2_buildings))
+  
+
+
+datatable(temp_table, caption = "Maryland Rooftop PV Potential for Small Buildings") %>%
+  formatCurrency('SGI Buildings',currency = "", interval = 3, mark = ",", digits=0) %>%
+  formatCurrency('SGII Buildings',currency = "", interval = 3, mark = ",", digits=0) 
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
