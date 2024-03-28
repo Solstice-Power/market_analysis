@@ -43,31 +43,31 @@ We use the Groundswell's [LIFT](https://lift.groundswell.org/solar-projects/) to
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-ca_geo <- read_csv("final_data/ca_geo_total.csv") %>%
+ca_geo <- read_csv("index_data/ca_geo_total.csv") %>%
  # mutate(State = "California") %>%
   select( Population, Percentage)
 
-il_geo_sfa <- read_csv("final_data/il_geo_sfa_total.csv")%>%
+il_geo_sfa <- read_csv("index_data/il_geo_sfa_total.csv")%>%
  # mutate(State = "Illinois SFA")  %>%
   select( Population, Percentage)
 
 
-il_geo_engie <- read_csv("final_data/il_geo_engie_total.csv")%>%
+il_geo_engie <- read_csv("index_data/il_geo_engie_total.csv")%>%
  # mutate(State = "Illinois Engie")  %>%
   select( Population, Percentage)
 
 
-nj_geo <- read_csv("final_data/nj_geo_total.csv")%>%
+nj_geo <- read_csv("index_data/nj_geo_total.csv")%>%
 #  mutate(State = "New Jersey")  %>%
   select( Population, Percentage)
 
 
-ny_geo <- read_csv("final_data/ny_geo_total.csv")%>%
+ny_geo <- read_csv("index_data/ny_geo_total.csv")%>%
  # mutate(State = "New York")  %>%
   select( Population, Percentage)
 
 
-ma_geo <- read_csv("final_data/ma_geo_total.csv") %>%
+ma_geo <- read_csv("index_data/ma_geo_total.csv") %>%
   mutate(State = "Massachusetts",
          Percentage = `Geo-Qual Population`/`State Total Pop`) %>%
   select(State, `Geo-Qual Population`, Percentage, `80% AMI`, `100% AMI`, SNAP = `SNAP HHs`, `Total Pop` = `State Total Pop`, -Utility)
@@ -78,13 +78,13 @@ temp_geo <- rbind(ca_geo, il_geo_sfa, il_geo_engie, nj_geo, ny_geo)
 
 
 
-ca_lmi <- read_csv("final_data/ca_lmi_total.csv") %>%
+ca_lmi <- read_csv("index_data/ca_lmi_total.csv") %>%
   mutate(State = "California") %>%
   select(-Utility)
 
 cal_total <- cbind(ca_geo, ca_lmi)
 
-il_lmi <- read_csv("final_data/il_lmi_total.csv")%>%
+il_lmi <- read_csv("index_data/il_lmi_total.csv")%>%
   mutate(State = "Illinois") %>%
   select(-Utility)
 
@@ -95,7 +95,7 @@ il_total_engie <- cbind(il_geo_engie, il_lmi)
 il_total_engie$State <- "Illinois Engie"
 
 
-nj_lmi <- read_csv("final_data/nj_lmi_total.csv")%>%
+nj_lmi <- read_csv("index_data/nj_lmi_total.csv")%>%
   mutate(State = "New Jersey") %>%
   select(-Utility)
 
@@ -111,14 +111,14 @@ nj_total <- nj_total %>%
          SNAP, `Total Pop`, State)
 
 
-ny_lmi <- read_csv("final_data/ny_lmi_total.csv")%>%
+ny_lmi <- read_csv("index_data/ny_lmi_total.csv")%>%
   mutate(State = "New York") %>%
   select(-Utility)
 
 ny_total <- cbind(ny_geo, ny_lmi)
 
 
-nm_lmi <- read_csv("final_data/nm_lmi_total.csv") %>%
+nm_lmi <- read_csv("index_data/nm_lmi_total.csv") %>%
   mutate(State = "New Mexico") %>%
   rename(`Total Pop` = `Total Population`,
          `SNAP` = `SNAP HH`) %>%

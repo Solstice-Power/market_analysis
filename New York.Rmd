@@ -608,7 +608,7 @@ datatable(temp, caption = "Interim Disadvantaged Communities (DAC) Population by
 
 temp %>%
   filter(Name=="Total") %>%
-  write_csv("final_data/ny_geo_total.csv")
+  write_csv("docs/final_data/ny_geo_total.csv")
 
 
 pre_screened <- st_transform(pre_screened, st_crs(total_ny_tracts)) %>% st_make_valid()
@@ -1112,7 +1112,7 @@ datatable(temp_table, caption = "New York LMI Population by Utility") %>%
 
 temp_table %>%
   filter(Utility=="Total") %>%
-  write_csv("final_data/ny_lmi_total.csv")
+  write_csv("docs/final_data/ny_lmi_total.csv")
 
 ```
 

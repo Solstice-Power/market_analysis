@@ -368,11 +368,11 @@ datatable(temp, caption = "Illinois Geoqualification Method Totals")%>%
 
 temp %>%
   filter(Method=="Engie") %>%
-  write_csv("final_data/il_geo_engie_total.csv")
+  write_csv("docs/final_data/il_geo_engie_total.csv")
 
 temp %>%
   filter(Method=="Combined SFA") %>%
-  write_csv("final_data/il_geo_sfa_total.csv")
+  write_csv("docs/final_data/il_geo_sfa_total.csv")
 ```
 
 
@@ -511,7 +511,7 @@ datatable(temp_table, caption = "Illinois LMI Population by Utility") %>%
 
 temp_table %>%
   filter(Utility=="Total") %>%
-  write_csv("final_data/il_lmi_total.csv")
+  write_csv("docs/final_data/il_lmi_total.csv")
 
 ```
 

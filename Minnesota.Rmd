@@ -103,6 +103,86 @@ leaflet() %>%
             title="Solstice MN Utilities")
 ```
 
+
+```{r}
+#acs_vars <- load_variables(2022, "acs5")
+
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    TRUE ~ "Other"
+  )) %>%
+  filter(State_Name == "Minnesota" )
+
+mn_chas <- chas_df %>%
+  filter(State_Name == "Minneosta")
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state="MN",
+  variables=c("total_pop" = "B01001_001", 
+              "total_hhs" = "B11001_001", 
+              "ami_total" = "B06012_001",
+              "ami_one" = "B06012_002",
+              "ami_two" = "B06012_003"),
+  year=2019, 
+  geometry=TRUE) %>%
+  group_by(geoid=GEOID) %>%
+  summarize(total_pop = estimate[variable=="total_pop"],
+            total_hhs = estimate[variable=="total_hhs"],
+            pop_below_150 = estimate[variable=="ami_one"] + estimate[variable=="ami_two"],
+            ami_total = estimate[variable=="ami_total"])
+
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+
+```
+
+
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+xcel <- temp_util %>%
+  filter(new_name == "XCEL")
+
+
+
+
+mn_xcel_pop <- add_geo %>%
+  st_point_on_surface() %>%
+  st_join(xcel %>% select(new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(new_name) %>%
+  summarize(`Total Population` = sum(total_pop),
+            `Total HHs` = sum(total_hhs),
+            `<150% AMI Population` = sum(pop_below_150), 
+            `<150% AMI HHs` =  round(sum(pop_below_150)/2.48))
+
+
+
+
+datatable(mn_xcel_pop, caption = "Minnesota Xcel Utility Population <=150 AMI") %>%
+   formatCurrency('Total Population',currency = "", interval = 3, mark = ",", digits=0) %>%
+   formatCurrency('Total HHs',currency = "", interval = 3, mark = ",", digits=0) %>%
+  formatCurrency('<150% AMI Population', currency = "", interval = 3, mark = ",", digits=0) %>%
+  formatCurrency('<150% AMI HHs', currency = "", interval = 3, mark = ",", digits=0) 
+
+
+
+```
+
+
 # Geoqualification
 
 
@@ -119,7 +199,32 @@ leaflet() %>%
 There are 7 projects in the LIFT solar database in Minnesota.  
 
 
-```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
+```{r eval=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE, include=FALSE}
+
+
+# chas_df <- load_chas() %>%
+#     mutate(State_Name = case_when(
+#     state == 17 ~ "Illinois",
+#     state == 25 ~ "Massachusetts",  
+#     state == 27 ~ "Minnesota",  
+#     state == 34 ~ "New Jersey",
+#     state == 35 ~ "New Mexico",  
+#     state == 36 ~ "New York",
+#     state == 06 ~ "California",
+#     state == 27 ~ "Minnesota",
+#     TRUE ~ "Other"
+#   )) %>%
+#   filter(State_Name == "Minnesota") 
+# 
+# 
+# 
+# add_geo <- merge(chas_df, get_tracts) 
+# 
+# add_geo <- st_as_sf(add_geo)
+
+
+temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
+  st_make_valid()
 
 lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
 
@@ -182,8 +287,7 @@ map <- leaflet() %>%
               popup=paste("Utility Zone: ", temp_util$comp_short)
   ) %>%
   
-  addPolygons(
-    data = temp_df,
+  addPolygons(data = temp_df,
     group="80% AMI",  # This should be consistent with the group name in the addLegend function
     stroke=FALSE,
     smoothFactor=0.2,

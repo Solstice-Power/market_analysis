@@ -57,16 +57,47 @@ load_chas <- function()
   
   # return(chas_df)
   chas_df <- chas_df %>%
-    filter(st %in% c(17,35,25,34,36,27, 6, 10, 24)) %>%
+    filter(st %in% c(17,35,25,34,36,27, 6, 10, 24, 22)) %>%
 
     mutate(geoid = gsub("14000US", "", geoid)) %>%
     
     
     mutate(
+      total_hh = T11_est1,
       
       AMI_30 = T11_est47 +T11_est48+T11_est61+T11_est62+T11_est75+T11_est76,
       AMI_50 = T11_est47 +T11_est48+T11_est49+T11_est50+T11_est61+T11_est62+T11_est63+T11_est64+T11_est75+T11_est76+T11_est77+T11_est78,
-      
+      AMI_60 = 
+      T11_est4 +
+      T11_est5+
+      T11_est6+
+      T11_est7+
+      T11_est8+
+      T11_est18+
+      T11_est19+
+      T11_est20+
+      T11_est21+
+      T11_est22+
+      T11_est32+
+      T11_est33+
+      T11_est34+
+      T11_est35+
+      T11_est36+
+      T11_est47+
+      T11_est48+
+      T11_est49+
+      T11_est50+
+      T11_est51+
+      T11_est61+
+      T11_est62+
+      T11_est63+
+      T11_est64+
+      T11_est65+
+      T11_est75+
+      T11_est76+
+      T11_est77+
+      T11_est78 +
+      T11_est79, 
       
       AMI_80 = T11_est4+T11_est5+T11_est6+T11_est7+T11_est9+T11_est10+T11_est18+T11_est19+T11_est20+T11_est21+T11_est23+T11_est24+T11_est32+T11_est33+T11_est34+T11_est35+T11_est37+T11_est38+T11_est47+T11_est48+T11_est49+
         T11_est50+T11_est52+T11_est53+T11_est61+T11_est62+T11_est63+T11_est64+T11_est66+T11_est67+T11_est75+T11_est76+T11_est77+T11_est78+T11_est80+T11_est81,
@@ -169,7 +200,7 @@ load_chas <- function()
     #  Total_Pop = AMI_120 + AMI_Over_120
     ) %>%
     select(geoid, name, state=st, AMI_140_Pct, AMI_120_Pct, AMI_115_Pct,AMI_100_Pct,AMI_80_Pct,
-           AMI_140, AMI_120, AMI_115,AMI_100,AMI_80, AMI_50, AMI_30) %>%
+           AMI_140, AMI_120, AMI_115,AMI_100,AMI_80, AMI_60, AMI_50, AMI_30, total_hh) %>%
     mutate(
       n_140 = case_when(
         AMI_140_Pct >= 0.5 ~ 1,
