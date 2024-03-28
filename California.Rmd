@@ -311,7 +311,7 @@ datatable(temp_table, caption = "California Geoqualified Population by Utiliy Zo
 
 temp_table %>%
   filter(Utility=="Total") %>%
-  write_csv("final_data/ca_geo_total.csv")
+  write_csv("docs/final_data/ca_geo_total.csv")
 
 
 ```
@@ -463,7 +463,7 @@ datatable(temp_table, caption = "California LMI Population by Utility") %>%
 
 temp_table %>%
   filter(Utility=="Total") %>%
-  write_csv("final_data/ca_lmi_total.csv")
+  write_csv("docs/final_data/ca_lmi_total.csv")
 
 
 ```

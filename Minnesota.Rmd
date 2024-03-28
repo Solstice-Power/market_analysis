@@ -151,9 +151,8 @@ add_geo <- st_as_sf(add_geo)
 
 
 
-Data ask for Sam 
 
-```{r}
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 xcel <- temp_util %>%
   filter(new_name == "XCEL")
 
@@ -200,7 +199,32 @@ datatable(mn_xcel_pop, caption = "Minnesota Xcel Utility Population <=150 AMI") 
 There are 7 projects in the LIFT solar database in Minnesota.  
 
 
-```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
+```{r eval=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE, include=FALSE}
+
+
+# chas_df <- load_chas() %>%
+#     mutate(State_Name = case_when(
+#     state == 17 ~ "Illinois",
+#     state == 25 ~ "Massachusetts",  
+#     state == 27 ~ "Minnesota",  
+#     state == 34 ~ "New Jersey",
+#     state == 35 ~ "New Mexico",  
+#     state == 36 ~ "New York",
+#     state == 06 ~ "California",
+#     state == 27 ~ "Minnesota",
+#     TRUE ~ "Other"
+#   )) %>%
+#   filter(State_Name == "Minnesota") 
+# 
+# 
+# 
+# add_geo <- merge(chas_df, get_tracts) 
+# 
+# add_geo <- st_as_sf(add_geo)
+
+
+temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
+  st_make_valid()
 
 lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
 
@@ -263,8 +287,7 @@ map <- leaflet() %>%
               popup=paste("Utility Zone: ", temp_util$comp_short)
   ) %>%
   
-  addPolygons(
-    data = temp_df,
+  addPolygons(data = temp_df,
     group="80% AMI",  # This should be consistent with the group name in the addLegend function
     stroke=FALSE,
     smoothFactor=0.2,

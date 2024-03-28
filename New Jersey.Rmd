@@ -260,7 +260,7 @@ datatable(temp_table, caption = "New Jersey Geoqualified Population") %>%
 
 temp_table %>%
 #  filter(Geoqualified=="Yes") %>%
-  write_csv("final_data/nj_geo_total.csv")
+  write_csv("docs/final_data/nj_geo_total.csv")
 
 ```
 
@@ -1157,7 +1157,7 @@ map %>%
 
 temp_table %>%
   filter(Utility=="Total") %>%
-  write_csv("final_data/nj_lmi_total.csv")
+  write_csv("docs/final_data/nj_lmi_total.csv")
 
 
 ```
