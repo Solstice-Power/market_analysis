@@ -103,25 +103,6 @@ zip_table
 
 
 
-```{r}
-
-# nm_blocks <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/My Drive/LMI ID Hackathon November 2023/Census Data/final_data/nm_census_block_data.geojson")
-# 
-# nm_blocks <- st_transform(nm_blocks, st_crs(temp_util))
-# 
-# pop_by_util <- nm_blocks %>%
-#   st_point_on_surface() %>%
-#   st_join(temp_util %>% select(Utility = NAME)) %>%
-#   st_drop_geometry() %>%
-#   group_by(Utility) %>%
-#   summarize(Population = sum(block_pop)) %>%
-#   mutate(Percent = Population/sum(Population))
-# 
-# pop_by_util
-
-```
-
-
 
 
 
@@ -695,7 +676,7 @@ datatable(temp, caption = "New Mexico, Sources: ACS 2019 and HUD CHAS")%>%
 
 temp %>%
   filter(Name=="Total") %>%
-  write_csv("final_data/nm_lmi_total.csv")
+  write_csv("docs/final_data/nm_lmi_total.csv")
 
 
 ```
@@ -852,7 +833,242 @@ map %>%
 
 
 
+## LMI Population by County
 
+The below table and graph shows the total LMI population by county in New Mexico. This is definied by the population living at 80% AMI. This data is estimated using three different methods:
+
+- HUD LMI Population by Block Group Data
+- HUD CHAS Data with Average HH Size Estimate
+- New Mexico Commission Estimate
+
+The third method is taken directly from the New Mexico commission meeting data: 
+
+![New Mexico Commission LMI Estimate by County](data/nm_commission_est.png)
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+hud_shp <- st_read("data/HUD/LOW_MOD_INCOME_BY_BG_-3053113168306498036/Low_to_Moderate_Income_Population_by_Block_Group.shp") %>%
+  filter(Stusab == "NM") 
+
+hud_lmi_df <- read_csv("data/HUD/LOW_MOD_INCOME_BY_BG_-8762454996677272279.csv") %>%
+  filter(Stusab == "NM") %>%
+  group_by(County = Countyname) %>%
+  summarize(`Low Income` = sum(Low),
+            `LMI` = sum(Lowmod),
+            `Total` = sum(Lowmoduniv))
+
+hud_lmi_df
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# string_name = utility_zone
+temp_zone <- temp_util 
+
+  # Transform only if CRS does not match
+if (!st_crs(hud_shp) == st_crs(temp_zone)) {
+  temp_zone <- st_transform(temp_zone, st_crs(hud_shp)) %>%
+    st_make_valid()
+}
+
+# Assuming st_area has been calculated for temp_util in the global environment
+temp_zone$area <- st_area(temp_zone)
+
+# Compute intersection summary only if it's not already done
+if (!"area" %in% names(hud_shp)) {
+  hud_shp$area <- st_area(hud_shp)
+}
+
+intersection_summary <- st_intersection(hud_shp, temp_zone) %>%
+  mutate(intersection_area = st_area(geometry)) %>%
+  st_drop_geometry() %>%
+  group_by(GEOID) %>%
+  summarize(intersection_area = sum(intersection_area))
+
+get_county_coverage <- hud_shp %>%
+  left_join(intersection_summary, by = "GEOID") %>%
+  mutate(coverage = ifelse(is.na(intersection_area), 0, intersection_area / area))
+
+final_table <- get_county_coverage %>%
+  st_drop_geometry() %>%
+  mutate(Lowmod = as.integer(Lowmod)) %>%
+  group_by(Countyname) %>%
+  mutate(CoveredPop = coverage * Lowmod ) %>%
+  summarize(CoveredPop = sum(CoveredPop, na.rm=T))
+
+# change CoveredPop to not be in scientific notation, round it and sort by CoveredPop highest to lowest
+final_table$CoveredPop <- format(final_table$CoveredPop, scientific = FALSE)
+
+#
+
+final_table_method_1 <- final_table %>%
+  mutate(CoveredPop = as.numeric(CoveredPop)) %>%
+  filter(CoveredPop > 0) %>%
+  arrange(desc(CoveredPop)) %>%
+  mutate(CoveredPop = round(CoveredPop, 0)) %>%
+  select(County = Countyname, LMI=CoveredPop)
+
+final_table_method_1
+
+# utility_counties <- get_county_coverage %>%
+#   filter(coverage >= 0.05) # captures zips with 5% of area covered by Utility Zone
+```
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+### Method 2: HUD CHAS Data with Average HH Size Estimate
+
+# get census tract level data for NM using get_acs, for variables B25010
+nm_avg_hh_size <- get_acs(
+  geography = "tract",
+  state = "NM",
+  variables = c("B25010_001"),
+  year = 2019, 
+  geometry = FALSE)
+
+temp_nm <- merge(nm_avg_hh_size, add_geo, by.x = "GEOID", by.y = "geoid")
+
+temp_nm <- st_as_sf(temp_nm)
+
+temp_nm$total_lmi_pop <- temp_nm$estimate * temp_nm$AMI_80
+
+# add geo back in
+
+
+temp_nm <- st_as_sf(temp_nm)
+
+# create a new variable called countyName that pulls the county name from the 'NAME' column with values like this: Census Tract 1.07, Bernalillo County, New Mexico
+
+# create a new variable called countyName that takes the value of the string 'NAME' after the first comma but before the second comma
+temp_nm$countyName <- str_extract(temp_nm$NAME, "(?<=, ).*(?= County)")
+
+# add " County" to countyName
+temp_nm$countyName <- paste(temp_nm$countyName, " County", sep="")
+
+# overlay same way as method 1: 
+
+# string_name = utility_zone
+temp_zone <- temp_util 
+
+  # Transform only if CRS does not match
+if (!st_crs(temp_nm) == st_crs(temp_zone)) {
+  temp_zone <- st_transform(temp_zone, st_crs(temp_nm)) %>%
+    st_make_valid()
+}
+
+# Assuming st_area has been calculated for temp_util in the global environment
+temp_zone$area <- st_area(temp_zone)
+
+# Compute intersection summary only if it's not already done
+if (!"area" %in% names(temp_nm)) {
+  temp_nm$area <- st_area(temp_nm)
+}
+
+intersection_summary <- st_intersection(temp_nm, temp_zone) %>%
+  mutate(intersection_area = st_area(geometry)) %>%
+  st_drop_geometry() %>%
+  group_by(GEOID) %>%
+  summarize(intersection_area = sum(intersection_area))
+
+get_county_coverage <- temp_nm %>%
+  left_join(intersection_summary, by = "GEOID") %>%
+  mutate(coverage = ifelse(is.na(intersection_area), 0, intersection_area / area))
+
+final_table <- get_county_coverage %>%
+  st_drop_geometry() %>%
+  mutate(Lowmod = as.integer(total_lmi_pop)) %>%
+  group_by(countyName) %>%
+  mutate(CoveredPop = coverage * Lowmod ) %>%
+  summarize(CoveredPop = sum(CoveredPop, na.rm=T))
+
+# change CoveredPop to not be in scientific notation, round it and sort by CoveredPop highest to lowest
+final_table$CoveredPop <- format(final_table$CoveredPop, scientific = FALSE)
+
+#
+
+final_table_method_2 <- final_table %>%
+  mutate(CoveredPop = as.numeric(CoveredPop)) %>%
+  filter(CoveredPop > 0) %>%
+  arrange(desc(CoveredPop)) %>%
+  mutate(CoveredPop = round(CoveredPop, 0))%>%
+  select(County = countyName, LMI_method2=CoveredPop)
+
+final_table_method_2
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+combined_tables <- merge(final_table_method_1, final_table_method_2, by="County") 
+ 
+nm_control_data <- data.frame(
+  County = c("Bernalillo County", "Dona Ana County", "Santa Fe County", "Sandoval County", "Valencia County", 
+             "Chaves County", "Otero County", "Lea County", "Eddy County","Curry County", "Luna County", "San Miguel County", 
+             "Grant County", "Roosevelt County", "Lincoln County", "Quay County",   "Hidalgo County", "Union County"),
+  'NM_Commission_Est' = c(271025, 88230, 42555, 42555, 35440, 26535, 24660, 
+          22970, 21550, 19830, 12975, 12090, 10880, 8395, 8155, 4255, 2015, 1670)
+)
+
+combined_tables <- merge(combined_tables, nm_control_data, by="County")
+
+combined_tables <- combined_tables %>%
+  filter(LMI * LMI_method2 > 0) %>%
+  arrange(desc(LMI))
+
+
+
+
+# make a ggplot of combined_tables, with County on the X axis and three different bar charts for each of the LMI, LMI_method2, and Est_LMI
+# make sure to use the fill aesthetic to differentiate between the three different bar charts
+# make sure to use the scale_fill_manual function to set the colors of the bars
+# make sure to use the labs function to set the title and axis labels
+# make sure to use the theme_minimal function to set the theme of the plot
+
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Assuming combined_tables has the columns County, LMI, LMI_method2, and Est_LMI
+
+# Reshape the data to long format
+long_combined_tables <- combined_tables %>%
+  pivot_longer(cols = c(LMI, LMI_method2, NM_Commission_Est), names_to = "Measure", values_to = "Value")
+
+library(scales) # For label_number()
+
+# Assuming combined_tables has been reshaped to long format in long_combined_tables
+
+ggplot(long_combined_tables, aes(x=reorder(County, -Value), y=Value, fill=Measure)) +
+  geom_bar(stat="identity", position=position_dodge(width=0.7)) +
+  scale_fill_manual(values=c("LMI"="red", "LMI_method2"="blue", "NM_Commission_Est"="green")) +
+  labs(title="Low to Moderate Income Population by County", x="County", y="Population") +
+  scale_y_continuous(labels=label_number()) + # Format the y-axis labels as numeric
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+
+
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+datatable(combined_tables, caption = "New Mexico LMI by County Estimates")%>%
+  formatCurrency('LMI',currency = "", interval = 3, mark = ",", digits = 0) %>%
+  formatCurrency('LMI_method2',currency = "", interval = 3, mark = ",", digits = 0) %>%
+  formatCurrency('NM_Commission_Est',currency = "", interval = 3, mark = ",", digits = 0)  
+
+
+```
 
 
 ## Low Income Housing
@@ -1127,9 +1343,5 @@ datatable(temp, caption = "New Mexico Distance from Public Housing and Selected 
 There are zero community solar projects in New Mexico according to the LIFT solar database. 
 
 
-
-# Parcel Identification
-
-Sources:
 
 
