@@ -178,7 +178,7 @@ add_geo <- st_as_sf(add_geo)
 #  * NYSERDA [Supported Solar Projects](https://www.nyserda.ny.gov/All-Programs/NY-Sun/Solar-Data-Maps/NYSERDA-Supported-Solar-Projects)
 
 
-ny_zone_e <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/New York/Zone E Boundary/NY Zone E.shp") 
+ny_zone_e <- st_read("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/New York/Zone E Boundary/NY Zone E.shp") 
 
 ny_zone_e <- st_transform(ny_zone_e, st_crs(get_zips)) %>%
   st_make_valid()

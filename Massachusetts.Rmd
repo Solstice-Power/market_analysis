@@ -113,13 +113,13 @@ chas_df <- load_chas() %>%
 get_tracts <- get_acs(
   geography="tract", 
   state="MA",
-  variables=c("Median Income" = "S1901_C01_012E"),
+  variables=c("Total_Pop" = "B01001_001"),
   year=2019, 
   geometry=TRUE) %>%
-  mutate(MedInc = estimate) %>%
+  mutate(Total_Pop = estimate) %>%
   select(geoid=GEOID, geometry)
 
-add_geo <- merge(chas_df, ma_tracts) 
+add_geo <- merge(chas_df, ma_tracts, by="geoid")
 add_geo <- st_as_sf(add_geo)
 
 add_geo2 <- merge(chas_df, get_tracts)
@@ -128,6 +128,8 @@ add_geo2 <- st_as_sf(add_geo2)
 
 temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
   st_make_valid()
+
+
 
 temp_util <- temp_util %>%
   group_by(new_name) %>%
@@ -218,6 +220,8 @@ geo_qual_table <- ma_ej_blocks %>%
    adorn_totals("row") %>%
   select(-Utility)
 
+temp_util <- st_transform(temp_util, st_crs(add_geo2)) %>%
+  st_make_valid()
 
 temp_table <- add_geo %>% 
   st_point_on_surface() %>%
@@ -233,12 +237,16 @@ temp_table <- add_geo %>%
            # `Total Under 80%` = sum(AMI_80_inclusive),
 
             `SNAP HHs` = sum(snap_hh),
-            `State Total HHs` = sum(total_hh),
+            `State Total HHs` = sum(total_hh.x),
             `State Total Pop` = sum(total_pop))%>%
    adorn_totals("row") 
 
 #temp_table <- cbind(temp_table, geo_qual_table)
 temp_table <- cbind(temp_table[, 1:3], geo_qual_table[, 1], temp_table[, 4:6])
+
+r2_data <- data.frame(
+          Utility = c("Eversource", "National Grid", "Unitil", "Total")
+)
 
 datatable(temp_table, caption = "Massachusetts Households by AMI Percentage by Utility") %>%
 
@@ -260,7 +268,38 @@ datatable(temp_table, caption = "Massachusetts Households by AMI Percentage by U
 
 ## R2 and R4 Meter Estimates
 
-Utility level estimates for the number of R2 and R4 meters in Massachusetts are provided below. 
+Utility level estimates for the number of R2 and R4 meters in Massachusetts are provided below. The qualification for R2 and R4 is estimated by 200% of the Federal Poverty Line (FPL), we also provided the estimated number of families under 200% FPL within the geoqualified environmental justice (EJ) zones described above. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+r2_data <- read_csv("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/Requests/MA_R2_Estimate_Utility_with_EJ.csv") %>%
+  select(Utility, `Families Under 200% FPL` = Fam_Under_200, `Families Under 200% FPL in EJ Zone` = Fam_Under_200_EJ) %>%
+  filter(Utility != "Municipal") %>%
+  mutate(`Total R2 + R4` = case_when(
+    Utility == "Eversource" ~ 97911,
+    Utility == "National Grid" ~ round(97911/600787*611198), # esimate based on teh R2/R4 combo in Eversource and proportional to 100% AMI 
+    Utility == "UNITIL" ~ round(97911/600787*12665)
+  ))
+
+test_merge <- merge(temp_table, r2_data, by="Utility") %>%
+  adorn_totals("row")
+
+datatable(test_merge, caption = "Massachusetts Households by R2 and R4 Combined Estimates") %>%
+
+
+  formatCurrency('80% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('100% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>% 
+  formatCurrency('SNAP HHs',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('Geo-Qual Population',currency = "", interval = 3, digits = 0, mark = ",")  %>%
+
+  formatCurrency('State Total HHs',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('State Total Pop',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('Families Under 200% FPL',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('Families Under 200% FPL in EJ Zone',currency = "", interval = 3, digits = 0, mark = ",") %>%
+  formatCurrency('Total R2 + R4',currency = "", interval = 3, digits = 0, mark = ",") 
+
+
+```
+
 
 # LIFT Solar
 

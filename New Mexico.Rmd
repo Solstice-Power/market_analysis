@@ -852,7 +852,7 @@ The third method is taken directly from the New Mexico commission meeting data:
 hud_shp <- st_read("data/HUD/LOW_MOD_INCOME_BY_BG_-3053113168306498036/Low_to_Moderate_Income_Population_by_Block_Group.shp") %>%
   filter(Stusab == "NM") 
 
-hud_lmi_df <- read_csv("data/HUD/LOW_MOD_INCOME_BY_BG_-8762454996677272279.csv") %>%
+hud_lmi_df <- read_csv("data/HUD/LOW_MOD_INCOME_BY_BG_-3053113168306498036/LOW_MOD_INCOME_BY_BG_-8762454996677272279.csv") %>%
   filter(Stusab == "NM") %>%
   group_by(County = Countyname) %>%
   summarize(`Low Income` = sum(Low),
