@@ -243,24 +243,24 @@ For the SFA Program, an initial set of census tracts were designed ("legacy" lay
 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
-engie_tracts <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/Engie:Microsoft Geodata/MFST Engie Qualified Tracts.shp") 
+engie_tracts <- st_read("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/Engie:Microsoft Geodata/MFST Engie Qualified Tracts.shp") 
 
 # Population Var: TotalPp
 
 engie_tracts <- st_transform(engie_tracts, st_crs(get_tracts))
 
-old_sfa <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Qualified Tracts/ILSFA Qualified Tracts.shp")
+old_sfa <- st_read("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Qualified Tracts/ILSFA Qualified Tracts.shp")
 
 old_sfa <- st_transform(old_sfa, st_crs(get_tracts))
 
 
-new_sfa <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Updated Map June 2023/Tract_ILSFA_IncomeEligible_POLY_Map-Data/Tract_ILSFA_IncomeEligible_POLY.shp") %>%
+new_sfa <- st_read("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Updated Map June 2023/Tract_ILSFA_IncomeEligible_POLY_Map-Data/Tract_ILSFA_IncomeEligible_POLY.shp") %>%
   filter(IncomeElig==1)
 
 new_sfa <- st_transform(new_sfa, st_crs(get_tracts))
 
 
-combined_sfa <- st_read("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Updated Map June 2023/combined_ilsfa_maps.geojson")
+combined_sfa <- st_read("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Updated Map June 2023/combined_ilsfa_maps.geojson")
 
 combined_sfa <- st_transform(combined_sfa, st_crs(get_tracts))
 

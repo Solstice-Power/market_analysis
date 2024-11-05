@@ -17,7 +17,7 @@ California represents the largest residential and potentially the largest commun
 # **to-do** 
 # 
 # 1. add the CCA terriorties + penetration 
-# 2. add CS saturation layer - how much current CS is in the market currently? 
+# 2. add CS saturation layer - how much current CS is in the market currently? i
 # 3. add in the EIA number of households 
 
 source('helper_functions.R')
@@ -123,7 +123,7 @@ temp_util <- st_zm(temp_util, drop = TRUE)
 temp <- temp_util %>%
   select(OBJECTID, geometry)
 
-env_df <- st_read("/Users/jacobford/Downloads/calenviroscreen40shpf2021shp/CES4 Final Shapefile.shp") 
+env_df <- st_read("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/Qualified LMI by Utility Zones/lmi_by_utility/docs/data/CA/calenviroscreen40shpf2021shp/CES4 Final Shapefile.shp") 
 
 env_df <- st_transform(env_df, crs = st_crs(ca_tracts))
 

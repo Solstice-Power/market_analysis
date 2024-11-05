@@ -24,7 +24,7 @@ Solstice enrolls community solar customers through the Solar Massachusetts Renew
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
-ilsfa <- st_read("/Users/jacobford/Downloads/combined_ilsfa_maps.geojson")
+ilsfa <- st_read("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/Updated Map June 2023/combined_ilsfa_maps.geojson")
 
 temp_util <- st_read("utility_zones/MA/pubutil/TOWNS_POLY_V_ELEC.shp") %>%
   mutate(
@@ -183,7 +183,7 @@ temp <- ma_ej_blocks %>%
   st_transform(st_crs(ma_tracts))
 
 
-st_write(temp, "/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/MA/MA_2020_EJ_Blocks_corrected.geojson", append=FALSE)
+# st_write(temp, "/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/MA/MA_2020_EJ_Blocks_corrected.geojson", append=FALSE)
 
 
 
@@ -240,7 +240,7 @@ temp_table <- add_geo %>%
 #temp_table <- cbind(temp_table, geo_qual_table)
 temp_table <- cbind(temp_table[, 1:3], geo_qual_table[, 1], temp_table[, 4:6])
 
-datatable(temp_table, caption = "New Jersey Households by AMI Percentage by Utility") %>%
+datatable(temp_table, caption = "Massachusetts Households by AMI Percentage by Utility") %>%
 
 
   formatCurrency('80% AMI',currency = "", interval = 3, digits = 0, mark = ",") %>%
@@ -258,10 +258,13 @@ datatable(temp_table, caption = "New Jersey Households by AMI Percentage by Util
 ```
 
 
+## R2 and R4 Meter Estimates
+
+Utility level estimates for the number of R2 and R4 meters in Massachusetts are provided below. 
 
 # LIFT Solar
 
-There are 145 community solar projects in New Jersey according to the LIFT solar database. 
+There are 145 community solar projects in Massachusetts according to the LIFT solar database. 
 
 
 

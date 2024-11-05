@@ -28,9 +28,9 @@ load_packages()
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
 
-il_final_df <- read_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/il_final_table.csv")
+il_final_df <- read_csv("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/il_final_table.csv")
 
-mn_final_df <- read_csv("/Users/jacobford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/mn_final_table.csv")
+mn_final_df <- read_csv("/Users/jakeford/Library/CloudStorage/GoogleDrive-jake@solstice.us/Shared drives/Product | Jake/Geocoding/ILSFA/mn_final_table.csv")
 ```
 
 ### Illinois
